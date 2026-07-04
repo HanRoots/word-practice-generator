@@ -2577,46 +2577,80 @@ function serveFile(req, res) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
-  if (req.method === "POST" && req.url === "/api/generate") {
-    try {
-      const body = await readBody(req);
-      const input = JSON.parse(body || "{}");
-      const wrongChars = parseWrongChars(input.wrongChars);
-      if (!wrongChars.length) {
-        sendJson(res, 400, { error: "请至少输入一个错误单字。" });
-        return;
+function createAppServer() {
+  return http.createServer(async (req, res) => {
+    if (req.method === "POST" && req.url === "/api/generate") {
+      try {
+        const body = await readBody(req);
+        const input = JSON.parse(body || "{}");
+        const wrongChars = parseWrongChars(input.wrongChars);
+        if (!wrongChars.length) {
+          sendJson(res, 400, { error: "请至少输入一个错误单字。" });
+          return;
+        }
+        const generated = await callModel({ ...input, wrongChars });
+        sendJson(res, 200, generated);
+      } catch (error) {
+        sendJson(res, error.status || 500, { error: error.message || "Generate failed." });
       }
-      const generated = await callModel({ ...input, wrongChars });
-      sendJson(res, 200, generated);
-    } catch (error) {
-      sendJson(res, error.status || 500, { error: error.message || "Generate failed." });
-    }
-    return;
-  }
-
-  if (req.method === "GET") {
-    serveFile(req, res);
-    return;
-  }
-
-  sendText(res, 405, "Method not allowed");
-});
-
-function listen(port) {
-  server.once("error", error => {
-    if (error.code === "EADDRINUSE" && port < preferredPort + 20) {
-      console.warn(`Port ${port} is busy, trying ${port + 1}...`);
-      listen(port + 1);
       return;
     }
-    throw error;
-  });
 
-  server.listen(port, host, () => {
-    console.log(`Word practice generator: http://${host}:${port}`);
-    console.log(`Default model: ${defaultModel}`);
+    if (req.method === "GET") {
+      serveFile(req, res);
+      return;
+    }
+
+    sendText(res, 405, "Method not allowed");
   });
 }
 
-listen(preferredPort);
+function startServer(options = {}) {
+  const appServer = createAppServer();
+  const targetHost = options.host || host;
+  const targetPort = Number(options.port ?? preferredPort);
+  const shouldLog = options.log !== false;
+
+  return new Promise((resolve, reject) => {
+    function listen(port) {
+      appServer.once("error", error => {
+        if (error.code === "EADDRINUSE" && targetPort !== 0 && port < targetPort + 20) {
+          if (shouldLog) console.warn(`Port ${port} is busy, trying ${port + 1}...`);
+          listen(port + 1);
+          return;
+        }
+        reject(error);
+      });
+
+      appServer.listen(port, targetHost, () => {
+        const address = appServer.address();
+        const actualPort = typeof address === "object" && address ? address.port : port;
+        const displayHost = targetHost === "0.0.0.0" ? "127.0.0.1" : targetHost;
+        const url = `http://${displayHost}:${actualPort}`;
+        if (shouldLog) {
+          console.log(`Word practice generator: ${url}`);
+          console.log(`Default model: ${defaultModel}`);
+        }
+        resolve({
+          server: appServer,
+          host: targetHost,
+          port: actualPort,
+          url
+        });
+      });
+    }
+
+    listen(targetPort);
+  });
+}
+
+if (require.main === module) {
+  startServer().catch(error => {
+    throw error;
+  });
+}
+
+module.exports = {
+  createAppServer,
+  startServer
+};

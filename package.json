@@ -1,0 +1,38 @@
+{
+  "name": "word-practice-generator",
+  "version": "0.1.0",
+  "description": "小学语文字词练习生成器",
+  "author": "HanRoots",
+  "main": "main.js",
+  "private": false,
+  "scripts": {
+    "start": "node server.js",
+    "desktop": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.hanroots.wordpracticegenerator",
+    "productName": "字词练习生成器",
+    "files": [
+      "index.html",
+      "server.js",
+      "main.js",
+      "api-contract.md",
+      "README.md",
+      "data/**/*",
+      "tools/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.education",
+      "target": [
+        "dir"
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  }
+}

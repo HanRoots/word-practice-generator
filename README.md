@@ -21,6 +21,8 @@
 
 ## 启动
 
+### 网页版
+
 ```bash
 node server.js
 ```
@@ -36,6 +38,28 @@ http://127.0.0.1:8797
 ```bash
 PORT=8899 node server.js
 ```
+
+### 桌面版
+
+首次安装依赖：
+
+```bash
+npm install
+```
+
+开发运行：
+
+```bash
+npm run desktop
+```
+
+生成本机可运行的 macOS 应用目录：
+
+```bash
+npm run pack
+```
+
+桌面版会把网页、`server.js` 组题服务和本地字库一起打包。API Key 不会写入安装包，使用者仍然需要在「API 配置」里填写自己的模型服务；如果只使用本地兜底素材，生成能力会保守一些。
 
 ## API 配置
 
@@ -81,4 +105,3 @@ python3 tools/import_word_bank.py /Users/han/Desktop/字表库 data/word-bank.js
 - `data/word-bank.json`：三至六年级字词补充库。
 - `tools/import_word_bank.py`：从 `.docx` 字表导入本地 JSON 字库。
 - `api-contract.md`：大模型素材生成契约。
-
