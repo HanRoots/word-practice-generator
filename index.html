@@ -1,0 +1,2920 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>字词练习生成器</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #18202b;
+      --muted: #657185;
+      --line: #d9dee8;
+      --line-strong: #9aa6ba;
+      --blue: #2563eb;
+      --blue-soft: #e8f0ff;
+      --green: #15803d;
+      --green-soft: #e8f7ed;
+      --amber: #b45309;
+      --amber-soft: #fff4dd;
+      --red: #b91c1c;
+      --shadow: 0 16px 45px rgba(24, 32, 43, .08);
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --serif: "Songti SC", "SimSun", serif;
+      --write-cell: 42px;
+      --write-border: #6f6f6f;
+      --write-inner: #a9a9a9;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: var(--font);
+      line-height: 1.5;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .control {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 24px;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .version {
+      padding: 4px 8px;
+      color: var(--green);
+      background: var(--green-soft);
+      border: 1px solid #bfe8cc;
+      border-radius: 999px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .field {
+      margin: 18px 0;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field.is-hidden {
+      display: none;
+    }
+
+    label,
+    .label {
+      display: block;
+      margin-bottom: 8px;
+      color: #273244;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    textarea {
+      min-height: 220px;
+      padding: 12px;
+      resize: vertical;
+      font-size: 14px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select {
+      height: 40px;
+      padding: 0 10px;
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
+    }
+
+    .config-panel {
+      display: none;
+      margin: 12px 0 18px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f9fafc;
+    }
+
+    .config-panel.open {
+      display: block;
+    }
+
+    .config-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .config-head h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .config-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .config-status {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: #fff;
+      font-size: 12px;
+    }
+
+    .config-status.ready {
+      color: var(--green);
+      background: var(--green-soft);
+      border-color: #bfe8cc;
+    }
+
+    .config-status.warn {
+      color: var(--amber);
+      background: var(--amber-soft);
+      border-color: #f0cc88;
+    }
+
+    .config-status.error {
+      color: var(--red);
+      background: #fff1f2;
+      border-color: #fecdd3;
+    }
+
+    .hint {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .format {
+      display: grid;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 12px;
+      color: #344054;
+      background: #f9fafc;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      font-size: 12px;
+    }
+
+    .format code {
+      color: #0f3f86;
+      white-space: normal;
+    }
+
+    .checks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: #273244;
+      font-size: 14px;
+      user-select: none;
+    }
+
+    .check input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--blue);
+    }
+
+    .check-name {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .type-multiplier {
+      width: 62px;
+      min-height: 28px;
+      padding: 2px 6px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .type-multiplier:disabled {
+      opacity: .45;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      font-weight: 700;
+    }
+
+    .button.primary {
+      color: #fff;
+      background: var(--blue);
+    }
+
+    .button.secondary {
+      color: var(--ink);
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .button.print {
+      color: #073b1d;
+      background: var(--green-soft);
+      border-color: #a9dfba;
+    }
+
+    .button.warning {
+      color: #5f3300;
+      background: var(--amber-soft);
+      border-color: #f0cc88;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .stat {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .preview-shell {
+      padding: 24px;
+      overflow: auto;
+    }
+
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      max-width: 900px;
+      margin: 0 auto 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .paper-stack {
+      display: grid;
+      gap: 22px;
+      justify-content: center;
+    }
+
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 15mm 15mm 14mm;
+      background: #fff;
+      border: 1px solid #e4e8f0;
+      box-shadow: var(--shadow);
+      color: #111827;
+    }
+
+    .worksheet-header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #111827;
+    }
+
+    .worksheet-title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .worksheet-meta {
+      display: grid;
+      grid-template-columns: repeat(3, auto);
+      gap: 14px;
+      color: #344054;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .meta-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .meta-line::after {
+      content: "";
+      display: inline-block;
+      width: 56px;
+      height: 1px;
+      border-bottom: 1px solid #667085;
+      transform: translateY(4px);
+    }
+
+    .print-section {
+      margin-top: 24px;
+      break-inside: avoid;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 14px;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    .section-title .num {
+      display: inline-grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      color: #fff;
+      background: #111827;
+      border-radius: 999px;
+      font-size: 13px;
+    }
+
+    .question-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px 24px;
+    }
+
+    .question {
+      min-height: 42px;
+      font-size: 15px;
+    }
+
+    .question.full {
+      grid-column: 1 / -1;
+    }
+
+    .word-row {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .word-label {
+      color: #344054;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .square-grid {
+      display: inline-grid;
+      grid-auto-flow: column;
+      grid-auto-columns: var(--write-cell);
+      gap: 0;
+      vertical-align: middle;
+    }
+
+    .square {
+      position: relative;
+      width: var(--write-cell);
+      height: var(--write-cell);
+      border: 1.5px solid var(--write-border);
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .square + .square {
+      border-left-width: 0;
+    }
+
+    .square::before,
+    .practice-square::before,
+    .copy-table td::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 0;
+      border-left: 1px solid var(--write-inner);
+      pointer-events: none;
+    }
+
+    .square::after,
+    .practice-square::after,
+    .copy-table td::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 0;
+      border-top: 1px solid var(--write-inner);
+      pointer-events: none;
+    }
+
+    .copy-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-family: var(--serif);
+      font-size: 21px;
+    }
+
+    .copy-table td {
+      position: relative;
+      width: var(--write-cell);
+      height: var(--write-cell);
+      text-align: center;
+      vertical-align: middle;
+      border: 1.5px solid var(--write-border);
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .copy-table .sample {
+      color: #111827;
+      font-weight: 700;
+      background-color: #f9fafb;
+    }
+
+    .line-answer {
+      display: inline-block;
+      min-width: 72px;
+      height: 1.2em;
+      border-bottom: 1px solid #667085;
+      transform: translateY(3px);
+    }
+
+    .long-line {
+      display: block;
+      height: 34px;
+      border-bottom: 1px solid #98a2b3;
+    }
+
+    .choices {
+      margin: 6px 0 0;
+      color: #344054;
+      font-size: 13px;
+    }
+
+    .word-bank {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 10px;
+      padding: 10px;
+      border: 1px solid #c9d3e4;
+      background: #f8fbff;
+      border-radius: var(--radius);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 3px 10px;
+      border: 1px solid #b8c7df;
+      border-radius: 999px;
+      background: #fff;
+      font-weight: 700;
+    }
+
+    .answer-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 18px;
+      margin: 0;
+      padding-left: 20px;
+      font-size: 14px;
+    }
+
+    .answer-list li {
+      padding-left: 2px;
+    }
+
+    .answer-list.detailed {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .answer-detail {
+      break-inside: avoid;
+    }
+
+    .answer-head {
+      margin-bottom: 5px;
+      font-weight: 700;
+    }
+
+    .option-analysis-list {
+      display: grid;
+      gap: 3px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .option-analysis-list li {
+      padding-left: 0;
+    }
+
+    .option-letter {
+      display: inline-block;
+      min-width: 20px;
+      font-weight: 700;
+    }
+
+    .answer-note {
+      color: #475467;
+      font-size: 13px;
+    }
+
+    .practice-sheet {
+      position: relative;
+      padding: 18mm 15mm 10mm;
+      font-family: var(--serif);
+      color: #222;
+    }
+
+    .practice-sheet::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 19mm;
+      background: #fff8c9;
+      opacity: .64;
+    }
+
+    .booklet-header {
+      position: relative;
+      z-index: 1;
+      display: block;
+      min-height: 20mm;
+      margin: 0 -4mm 6mm;
+      padding: 1mm 4mm 2mm;
+      border-bottom: 1px solid #e9dfaa;
+    }
+
+    .booklet-kicker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #8a6f36;
+      font-family: var(--font);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .booklet-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      height: auto;
+      padding: 0;
+      color: inherit;
+      background: transparent;
+      border-radius: 0;
+      font-weight: 700;
+    }
+
+    .booklet-title {
+      margin: 2mm 0 3mm;
+      text-align: center;
+      font-size: 23px;
+      line-height: 1.15;
+      letter-spacing: 2px;
+      font-weight: 800;
+    }
+
+    .booklet-name-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 80px;
+    }
+
+    .booklet-name-line::after {
+      content: "";
+      display: inline-block;
+      width: 54px;
+      border-bottom: 1px solid #9b8e65;
+      transform: translateY(3px);
+    }
+
+    .booklet-section {
+      position: relative;
+      margin-top: 11mm;
+      break-inside: avoid;
+    }
+
+    .booklet-section-title {
+      margin: 0 0 6mm;
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 800;
+    }
+
+    .booklet-section-title .serial {
+      margin-right: 3px;
+    }
+
+    .pronunciation-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4mm 9mm;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .pronunciation-item {
+      white-space: nowrap;
+    }
+
+    .dot-char {
+      position: relative;
+      display: inline-block;
+      padding-bottom: .16em;
+      text-emphasis: none;
+      -webkit-text-emphasis: none;
+    }
+
+    .dot-char::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -.03em;
+      width: .18em;
+      height: .18em;
+      border-radius: 50%;
+      background: currentColor;
+      transform: translateX(-50%);
+    }
+
+    .pinyin-card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9mm 12mm;
+      justify-items: center;
+      align-items: start;
+    }
+
+    .pinyin-card-grid.wide {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pinyin-write-item {
+      break-inside: avoid;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .write-box {
+      display: inline-grid;
+      grid-template-rows: 22px auto;
+      row-gap: 3px;
+      width: max-content;
+    }
+
+    .pinyin-row {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: var(--write-cell);
+      align-items: end;
+      justify-content: start;
+      min-height: 22px;
+      color: #5f6368;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.1;
+      text-align: center;
+    }
+
+    .pinyin-row span {
+      min-width: 0;
+      overflow: visible;
+      white-space: nowrap;
+    }
+
+    .practice-squares {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: var(--write-cell);
+      justify-content: start;
+      gap: 0;
+    }
+
+    .practice-square {
+      position: relative;
+      width: var(--write-cell);
+      height: var(--write-cell);
+      border: 1.5px solid var(--write-border);
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .practice-square + .practice-square {
+      border-left-width: 0;
+    }
+
+    .fill-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 9mm 14mm;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .choice-question-list {
+      display: grid;
+      gap: 7mm;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .choice-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 2mm 9mm;
+      margin-top: 2mm;
+      color: #333;
+      font-size: 15px;
+    }
+
+    .meaning-option {
+      line-height: 1.9;
+    }
+
+    .context-question {
+      margin-bottom: 9mm;
+      font-size: 16px;
+      line-height: 2.75;
+    }
+
+    .inline-write {
+      display: inline-block;
+      vertical-align: middle;
+      margin: 0 7px;
+      transform: translateY(9px);
+    }
+
+    .inline-write .pinyin-row {
+      font-size: 14px;
+    }
+
+    .sentence-line {
+      display: block;
+      height: 30px;
+      border-bottom: 1px solid #888;
+    }
+
+    .booklet-footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: center;
+      gap: 14mm;
+      min-height: 7mm;
+      padding-top: 1mm;
+      color: #c86f31;
+      background: #fff8c9;
+      font-family: var(--font);
+      font-size: 11px;
+    }
+
+    .empty-state {
+      display: grid;
+      place-items: center;
+      width: 210mm;
+      min-height: 180mm;
+      padding: 28px;
+      color: var(--muted);
+      background: #fff;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      text-align: center;
+    }
+
+    @media (max-width: 1020px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .control {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .sheet,
+      .empty-state {
+        width: min(100%, 210mm);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .control,
+      .preview-shell {
+        padding: 16px;
+      }
+
+      .field-row,
+      .checks,
+      .actions,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .worksheet-header,
+      .worksheet-meta,
+      .question-grid,
+      .answer-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      body {
+        background: #fff;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      .app,
+      .preview-shell,
+      .paper-stack {
+        display: block;
+        padding: 0;
+        margin: 0;
+        min-height: 0;
+      }
+
+      .sheet {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0;
+        padding: 15mm;
+        border: 0;
+        box-shadow: none;
+        break-after: page;
+      }
+
+      .practice-sheet {
+        padding: 18mm 15mm 10mm;
+      }
+
+      .practice-sheet .booklet-section {
+        padding-top: 4mm;
+      }
+
+      .sheet:last-child {
+        break-after: auto;
+      }
+
+      .print-section {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="control no-print">
+      <div class="brand">
+        <h1>字词练习生成器</h1>
+        <span class="version">统编版小学语文</span>
+      </div>
+
+      <div class="field">
+        <label for="gradeSelect">年级</label>
+        <select id="gradeSelect">
+          <option value="一年级">一年级</option>
+          <option value="二年级">二年级</option>
+          <option value="三年级" selected>三年级</option>
+          <option value="四年级">四年级</option>
+          <option value="五年级">五年级</option>
+          <option value="六年级">六年级</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="worksheetTitle">练习标题</label>
+        <input id="worksheetTitle" type="text" value="暑假字词闯关练习">
+      </div>
+
+      <div class="field">
+        <label for="wordInput">错误单字输入</label>
+        <textarea id="wordInput" spellcheck="false"></textarea>
+        <div class="format">
+          <code>直接输入：拔 戴 辨 静 察</code>
+          <code>也可以粘贴：拔戴辨静察</code>
+          <code>工具会自动补词语、例句、易混字和答案。</code>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="label">题型</span>
+        <div class="checks" id="typeChecks">
+          <label class="check"><input type="checkbox" value="pronunciationChoice" checked> <span class="check-name">组词辨音</span><select class="type-multiplier" data-type-multiplier="pronunciationChoice"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
+          <label class="check"><input type="checkbox" value="pinyinWriteWord" checked> <span class="check-name">看拼音写词</span><select class="type-multiplier" data-type-multiplier="pinyinWriteWord"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
+          <label class="check"><input type="checkbox" value="confusingCharFill" checked> <span class="check-name">易混字填空</span><select class="type-multiplier" data-type-multiplier="confusingCharFill"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
+          <label class="check"><input type="checkbox" value="contextualPinyinWrite" checked> <span class="check-name">语境拼音</span><select class="type-multiplier" data-type-multiplier="contextualPinyinWrite"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
+          <label class="check"><input type="checkbox" value="mixedErrorChoice" checked> <span class="check-name">字音字形选择</span><select class="type-multiplier" data-type-multiplier="mixedErrorChoice"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
+          <label class="check"><input type="checkbox" value="meaningSameChoice" checked> <span class="check-name">字义辨析</span><select class="type-multiplier" data-type-multiplier="meaningSameChoice"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
+          <label class="check"><input type="checkbox" value="wordSentence" checked> <span class="check-name">组词造句</span><select class="type-multiplier" data-type-multiplier="wordSentence"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
+          <label class="check"><input type="checkbox" value="answer" checked> 答案页</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="label">生成方式</span>
+        <label class="check"><input id="useApi" type="checkbox" checked> 使用 API 大模型生成</label>
+        <p class="hint">API 模式需要通过本目录的 <code>server.js</code> 打开。配置保存在本机浏览器，只发送给本机服务。</p>
+        <button class="button secondary" id="toggleConfigBtn" type="button">API 配置</button>
+      </div>
+
+      <section class="config-panel" id="apiConfigPanel" aria-label="API 配置">
+        <div class="config-head">
+          <h2>API 配置</h2>
+          <span class="version" id="apiConfigBadge">未配置</span>
+        </div>
+
+        <div class="field">
+          <label for="apiProvider">接口类型</label>
+          <select id="apiProvider">
+            <option value="openai">OpenAI 兼容接口</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="custom">自定义</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="apiBaseUrl">Base URL</label>
+          <input id="apiBaseUrl" type="text" value="https://api.openai.com/v1" spellcheck="false">
+        </div>
+
+        <div class="field">
+          <label for="apiModel">模型</label>
+          <input id="apiModel" type="text" value="gpt-4.1-mini" list="modelPresets" spellcheck="false">
+          <datalist id="modelPresets">
+            <option value="gpt-4.1-mini"></option>
+            <option value="deepseek-v4-flash"></option>
+            <option value="deepseek-v4-pro"></option>
+            <option value="deepseek-chat"></option>
+          </datalist>
+        </div>
+
+        <div class="field">
+          <label for="apiKey">API Key</label>
+          <input id="apiKey" type="password" autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="field">
+          <label class="check"><input id="allowInsecureTLS" type="checkbox"> 允许自签名证书</label>
+          <p class="hint">仅在本机网络代理导致 <code>SELF_SIGNED_CERT_IN_CHAIN</code> 时勾选。</p>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="requestTimeout">请求超时（秒）</label>
+            <input id="requestTimeout" type="number" min="15" max="180" value="30">
+          </div>
+          <div class="field">
+            <label class="check"><input id="fastMode" type="checkbox" checked> 快速模式</label>
+            <p class="hint">DeepSeek 下会关闭思考模式，减少等待。</p>
+          </div>
+        </div>
+
+        <div class="config-actions">
+          <button class="button primary" id="saveConfigBtn" type="button">保存配置</button>
+          <button class="button warning" id="clearConfigBtn" type="button">清除密钥</button>
+        </div>
+        <div class="config-status" id="apiConfigStatus">页面加载时会自动读取已保存的配置。</div>
+      </section>
+
+      <div class="field-row">
+        <div class="field" id="localMaterialField">
+          <label for="wordCount">本地素材数量</label>
+          <input id="wordCount" type="number" min="4" max="60" value="18">
+          <p class="hint">仅本地兜底生成使用，API 模式不影响题量。</p>
+        </div>
+        <div class="field">
+          <label for="dateText">日期</label>
+          <input id="dateText" type="text">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="button primary" id="generateBtn" type="button">生成练习</button>
+        <button class="button print" id="printBtn" type="button">打印</button>
+        <button class="button secondary" id="sampleBtn" type="button">填入示例</button>
+        <button class="button warning" id="clearBtn" type="button">清空</button>
+      </div>
+
+      <div class="stats" aria-live="polite">
+        <div class="stat"><b id="statWords">0</b><span>错字/素材</span></div>
+        <div class="stat"><b id="statQuestions">0</b><span>题目</span></div>
+        <div class="stat"><b id="statPages">0</b><span>页</span></div>
+      </div>
+    </aside>
+
+    <section class="preview-shell">
+      <div class="preview-toolbar no-print">
+        <span id="previewStatus">等待生成</span>
+        <span>A4 打印预览</span>
+      </div>
+      <div class="paper-stack" id="preview">
+        <div class="empty-state">输入错误单字后生成练习页</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const sampleText = `拔 戴 辨 静 察 做 作 在 再 的 地 得`;
+
+    const charProfiles = {
+      "拔": {
+        pinyin: "ba",
+        meaning: "用力往外拉或抽出。",
+        confusables: ["拨"],
+        words: [
+          ["拔河", "ba he", "运动会上，我们班参加了拔河比赛。", "拨河", "双方用力拉绳子的比赛"],
+          ["拔草", "ba cao", "周末，我和爷爷一起在菜地里拔草。", "拨草", "把草连根拉出来"],
+          ["拔高", "ba gao", "写作文时，不能为了好看而故意拔高主题。", "拨高", "提高"]
+        ]
+      },
+      "拨": {
+        pinyin: "bo",
+        meaning: "用手推动、分开或转动。",
+        confusables: ["拔"],
+        words: [
+          ["拨开", "bo kai", "我轻轻拨开树叶，看见了一朵小花。", "拔开", "用手分开"],
+          ["拨动", "bo dong", "妹妹拨动琴弦，发出清脆的声音。", "拔动", "推动或挑动"],
+          ["拨号", "bo hao", "爸爸拿起电话拨号。", "拔号", "打电话号码"]
+        ]
+      },
+      "戴": {
+        pinyin: "dai",
+        meaning: "把东西放在头、脸、胸、臂等部位。",
+        confusables: ["带"],
+        words: [
+          ["戴帽子", "dai mao zi", "下雨了，妈妈戴上帽子出门。", "带帽子", "把帽子放在头上"],
+          ["佩戴", "pei dai", "少先队员佩戴着鲜艳的红领巾。", "佩带", "把标志物戴在身上"],
+          ["戴眼镜", "dai yan jing", "哥哥看书时总是戴眼镜。", "带眼镜", "把眼镜架在脸上"]
+        ]
+      },
+      "带": {
+        pinyin: "dai",
+        meaning: "携带、领着，或像带子一样的东西。",
+        confusables: ["戴"],
+        words: [
+          ["带路", "dai lu", "小向导带路，我们很快到了操场。", "戴路", "领着别人走"],
+          ["带书", "dai shu", "明天上课别忘了带书。", "戴书", "携带书本"],
+          ["带领", "dai ling", "老师带领我们参观科技馆。", "戴领", "领着大家行动"]
+        ]
+      },
+      "辨": {
+        pinyin: "bian",
+        meaning: "分辨、区别。",
+        confusables: ["辩", "辫", "瓣"],
+        words: [
+          ["辨别", "bian bie", "我们要学会辨别方向。", "辩别", "分清楚不同之处"],
+          ["分辨", "fen bian", "雾太大了，我分辨不清远处的房子。", "分辩", "区别、认出"],
+          ["辨认", "bian ren", "警察叔叔正在辨认脚印。", "辩认", "根据特点认出来"]
+        ]
+      },
+      "辩": {
+        pinyin: "bian",
+        meaning: "争论、说明是非。",
+        confusables: ["辨", "辫", "瓣"],
+        words: [
+          ["争辩", "zheng bian", "同学们为了一个问题争辩起来。", "争辨", "用语言争论"],
+          ["辩论", "bian lun", "班会课上，我们举行了一场辩论。", "辨论", "围绕观点展开争论"],
+          ["辩解", "bian jie", "犯了错要勇敢承认，不要急着辩解。", "辨解", "为自己说明理由"]
+        ]
+      },
+      "辫": {
+        pinyin: "bian",
+        meaning: "把头发编成的条状发束。",
+        confusables: ["辨", "辩", "瓣"],
+        words: [
+          ["辫子", "bian zi", "妹妹扎着两条漂亮的辫子。", "辨子", "编起来的头发"],
+          ["小辫", "xiao bian", "她的小辫随着脚步一跳一跳。", "小辨", "小辫子"],
+          ["发辫", "fa bian", "她把发辫整理得很整齐。", "发辨", "编起来的头发"]
+        ]
+      },
+      "瓣": {
+        pinyin: "ban",
+        meaning: "花、果实或种子分成的小片。",
+        confusables: ["辨", "辩", "辫"],
+        words: [
+          ["花瓣", "hua ban", "雨后，花瓣上挂着晶莹的水珠。", "花辫", "花朵的一片"],
+          ["豆瓣", "dou ban", "妈妈把豆瓣放进锅里炒香。", "豆辨", "豆类分开的小片"],
+          ["蒜瓣", "suan ban", "我帮妈妈剥了几瓣蒜。", "蒜辫", "大蒜的一小瓣"]
+        ]
+      },
+      "静": {
+        pinyin: "jing",
+        meaning: "安定、没有声音。",
+        confusables: ["净"],
+        words: [
+          ["安静", "an jing", "上课时，教室里非常安静。", "安净", "没有声音或很少声音"],
+          ["平静", "ping jing", "听完老师的话，我的心情渐渐平静下来。", "平净", "心情安定"],
+          ["宁静", "ning jing", "夜晚的湖边十分宁静。", "宁净", "安静、平和"]
+        ]
+      },
+      "净": {
+        pinyin: "jing",
+        meaning: "干净、没有脏东西。",
+        confusables: ["静"],
+        words: [
+          ["干净", "gan jing", "我们把教室打扫得很干净。", "干静", "没有脏东西"],
+          ["洁净", "jie jing", "雨后的天空格外洁净。", "洁静", "清洁干净"],
+          ["净化", "jing hua", "树木可以帮助净化空气。", "静化", "去掉不好的东西"]
+        ]
+      },
+      "察": {
+        pinyin: "cha",
+        meaning: "仔细看、调查了解。",
+        confusables: ["查"],
+        words: [
+          ["观察", "guan cha", "科学课上，我们仔细观察蚂蚁搬家。", "观查", "仔细看并发现特点"],
+          ["察看", "cha kan", "老师走近花坛，察看小苗的生长情况。", "查看", "仔细看"],
+          ["警察", "jing cha", "警察叔叔帮助迷路的小朋友回家。", "警查", "维护安全的人"]
+        ]
+      },
+      "查": {
+        pinyin: "cha",
+        meaning: "检查、寻找、翻看。",
+        confusables: ["察"],
+        words: [
+          ["检查", "jian cha", "写完作业后，我认真检查了一遍。", "检察", "查看有没有问题"],
+          ["查字典", "cha zi dian", "遇到不认识的字，我会查字典。", "察字典", "翻找字典"],
+          ["查看", "cha kan", "我查看了明天的课程表。", "察看", "看一看、检查"]
+        ]
+      },
+      "做": {
+        pinyin: "zuo",
+        meaning: "从事、制作、完成具体事情。",
+        confusables: ["作"],
+        words: [
+          ["做作业", "zuo zuo ye", "我每天认真做作业。", "作作业", "完成作业"],
+          ["做饭", "zuo fan", "爸爸正在厨房里做饭。", "作饭", "烹调饭菜"],
+          ["做事", "zuo shi", "做事要认真，不能马虎。", "作事", "办事情"]
+        ]
+      },
+      "作": {
+        pinyin: "zuo",
+        meaning: "作品、写作、作为等固定用法中常用。",
+        confusables: ["做"],
+        words: [
+          ["作文", "zuo wen", "这篇作文写得很生动。", "做文", "学生写的文章"],
+          ["作家", "zuo jia", "我最喜欢这位儿童作家的故事。", "做家", "写文章的人"],
+          ["作业", "zuo ye", "今天的语文作业不多。", "做业", "学习任务"]
+        ]
+      },
+      "在": {
+        pinyin: "zai",
+        meaning: "表示存在、地点或动作正在进行。",
+        confusables: ["再"],
+        words: [
+          ["正在", "zheng zai", "妹妹正在认真写作业。", "正再", "动作进行中"],
+          ["在家", "zai jia", "周末，我在家读书。", "再家", "处在家里"],
+          ["存在", "cun zai", "这个问题仍然存在。", "存再", "有、出现"]
+        ]
+      },
+      "再": {
+        pinyin: "zai",
+        meaning: "表示又一次、继续或以后。",
+        confusables: ["在"],
+        words: [
+          ["再见", "zai jian", "放学时，我们互相说再见。", "在见", "以后再见"],
+          ["再来", "zai lai", "我明天再来找你玩。", "在来", "又一次来"],
+          ["再三", "zai san", "妈妈再三提醒我要注意安全。", "在三", "一次又一次"]
+        ]
+      },
+      "的": {
+        pinyin: "de",
+        meaning: "一般放在名词前，表示“什么样的东西”。",
+        confusables: ["地", "得"],
+        words: [
+          ["美丽的", "mei li de", "美丽的花园里开满了花。", "美丽地", "修饰名词"],
+          ["我的", "wo de", "这是我的语文书。", "我地", "表示所属"],
+          ["红红的", "hong hong de", "红红的太阳升起来了。", "红红得", "修饰名词"]
+        ]
+      },
+      "地": {
+        pinyin: "de",
+        meaning: "一般放在动词前，表示“怎样地做”。",
+        confusables: ["的", "得"],
+        words: [
+          ["飞快地", "fei kuai de", "他飞快地跑向操场。", "飞快的", "修饰动作"],
+          ["认真地", "ren zhen de", "我认真地检查作业。", "认真的", "修饰动作"],
+          ["轻轻地", "qing qing de", "妈妈轻轻地关上门。", "轻轻的", "修饰动作"]
+        ]
+      },
+      "得": {
+        pinyin: "de",
+        meaning: "一般放在动词后，补充说明结果或程度。",
+        confusables: ["的", "地"],
+        words: [
+          ["笑得", "xiao de", "妹妹笑得很开心。", "笑的", "说明笑的程度"],
+          ["跑得", "pao de", "他跑得非常快。", "跑地", "说明跑的程度"],
+          ["写得", "xie de", "这篇作文写得很具体。", "写的", "说明写的效果"]
+        ]
+      },
+      "已": {
+        pinyin: "yi",
+        meaning: "已经、过去了。",
+        confusables: ["己", "巳"],
+        words: [
+          ["已经", "yi jing", "我已经完成了今天的练习。", "己经", "表示动作完成"],
+          ["早已", "zao yi", "太阳早已升起来了。", "早己", "早就已经"],
+          ["已知", "yi zhi", "题目中已知长方形的长和宽。", "己知", "已经知道"]
+        ]
+      },
+      "己": {
+        pinyin: "ji",
+        meaning: "自己。",
+        confusables: ["已", "巳"],
+        words: [
+          ["自己", "zi ji", "自己的事情要自己做。", "自已", "本人"],
+          ["知己", "zhi ji", "好朋友就像知己一样了解我。", "知已", "了解自己的人"],
+          ["克己", "ke ji", "我们要学会克己，不能乱发脾气。", "克已", "约束自己"]
+        ]
+      },
+      "未": {
+        pinyin: "wei",
+        meaning: "没有、尚未。",
+        confusables: ["末"],
+        words: [
+          ["未来", "wei lai", "我们要为未来努力学习。", "末来", "将来的时间"],
+          ["未必", "wei bi", "这件事未必像你想的那样。", "末必", "不一定"],
+          ["未完成", "wei wan cheng", "这项任务还未完成。", "末完成", "还没有完成"]
+        ]
+      },
+      "末": {
+        pinyin: "mo",
+        meaning: "最后、末尾。",
+        confusables: ["未"],
+        words: [
+          ["周末", "zhou mo", "周末，我和家人去公园散步。", "周未", "一周的最后"],
+          ["末尾", "mo wei", "请在句子的末尾加上句号。", "未尾", "最后的地方"],
+          ["期末", "qi mo", "期末复习要有计划。", "期未", "学期结束时"]
+        ]
+      },
+      "喝": {
+        pinyin: "he",
+        meaning: "把液体咽下去。",
+        confusables: ["渴"],
+        words: [
+          ["喝水", "he shui", "运动后要及时喝水。", "渴水", "饮水"],
+          ["喝茶", "he cha", "爷爷喜欢在早晨喝茶。", "渴茶", "饮茶"],
+          ["喝汤", "he tang", "晚饭时，我喝了一碗热汤。", "渴汤", "饮汤"]
+        ]
+      },
+      "渴": {
+        pinyin: "ke",
+        meaning: "口干想喝水。",
+        confusables: ["喝"],
+        words: [
+          ["口渴", "kou ke", "跑完步后，我感到很口渴。", "口喝", "想喝水"],
+          ["干渴", "gan ke", "小树苗在太阳下显得很干渴。", "干喝", "缺水"],
+          ["解渴", "jie ke", "夏天喝一杯凉白开最解渴。", "解喝", "消除口渴"]
+        ]
+      },
+      "晴": {
+        pinyin: "qing",
+        meaning: "天空没有云或云很少。",
+        confusables: ["睛", "清", "请", "情"],
+        words: [
+          ["晴天", "qing tian", "今天是个适合郊游的晴天。", "睛天", "天气晴朗"],
+          ["晴朗", "qing lang", "雨后，天空变得十分晴朗。", "睛朗", "天气好"],
+          ["放晴", "fang qing", "下午雨停了，天空终于放晴。", "放睛", "天气转晴"]
+        ]
+      },
+      "睛": {
+        pinyin: "jing",
+        meaning: "眼睛。",
+        confusables: ["晴", "清", "请", "情"],
+        words: [
+          ["眼睛", "yan jing", "妹妹的眼睛亮晶晶的。", "眼晴", "眼的器官"],
+          ["目不转睛", "mu bu zhuan jing", "大家目不转睛地看着舞台。", "目不转晴", "眼睛不转动地看"],
+          ["定睛", "ding jing", "我定睛一看，原来是一只小猫。", "定晴", "集中视线看"]
+        ]
+      },
+      "清": {
+        pinyin: "qing",
+        meaning: "干净、明白、清楚。",
+        confusables: ["晴", "睛", "请", "情"],
+        words: [
+          ["清水", "qing shui", "小溪里流着清水。", "晴水", "干净的水"],
+          ["清楚", "qing chu", "老师把问题讲得很清楚。", "晴楚", "明白"],
+          ["清晨", "qing chen", "清晨，鸟儿在树上歌唱。", "晴晨", "早晨"]
+        ]
+      },
+      "请": {
+        pinyin: "qing",
+        meaning: "请求、邀请或礼貌用语。",
+        confusables: ["晴", "睛", "清", "情"],
+        words: [
+          ["请问", "qing wen", "请问，图书馆怎么走？", "清问", "礼貌询问"],
+          ["请求", "qing qiu", "我请求老师再讲一遍。", "清求", "提出希望"],
+          ["邀请", "yao qing", "我邀请朋友来家里做客。", "邀清", "请别人来"]
+        ]
+      },
+      "情": {
+        pinyin: "qing",
+        meaning: "感情、情况。",
+        confusables: ["晴", "睛", "清", "请"],
+        words: [
+          ["心情", "xin qing", "今天我的心情特别好。", "心晴", "内心感受"],
+          ["事情", "shi qing", "这件事情终于解决了。", "事晴", "事物、情况"],
+          ["友情", "you qing", "真正的友情让人感到温暖。", "友晴", "朋友间的感情"]
+        ]
+      }
+    };
+
+    const pairBank = [
+      {
+        words: ["在", "再"],
+        prompts: [
+          { text: "我明天__来找你玩。", answer: "再", reason: "表示又一次，用“再”。" },
+          { text: "妹妹正__认真写作业。", answer: "在", reason: "表示动作正在进行，用“在”。" }
+        ],
+        typo: { wrong: "我明天在来找你玩。", answer: "我明天再来找你玩。" }
+      },
+      {
+        words: ["做", "作"],
+        prompts: [
+          { text: "我每天认真__作业。", answer: "做", reason: "完成具体事情，多用“做”。" },
+          { text: "这篇__文写得很生动。", answer: "作", reason: "“作文”是固定搭配。" }
+        ],
+        typo: { wrong: "我每天认真作作业。", answer: "我每天认真做作业。" }
+      },
+      {
+        words: ["戴", "带"],
+        prompts: [
+          { text: "妈妈__着一顶红帽子。", answer: "戴", reason: "放在头、脸、胸、臂等部位，用“戴”。" },
+          { text: "爸爸__我去图书馆。", answer: "带", reason: "领着别人去某处，用“带”。" }
+        ],
+        typo: { wrong: "妈妈带着一顶红帽子。", answer: "妈妈戴着一顶红帽子。" }
+      },
+      {
+        words: ["拔河", "拨河"],
+        prompts: [
+          { text: "运动会上，我们班参加了__比赛。", answer: "拔河", reason: "用力往外拉是“拔”。" }
+        ],
+        typo: { wrong: "运动会上，我们班参加了拨河比赛。", answer: "运动会上，我们班参加了拔河比赛。" }
+      },
+      {
+        words: ["观察", "观看"],
+        prompts: [
+          { text: "科学课上，我们仔细__蚂蚁搬家。", answer: "观察", reason: "仔细看并发现特点，用“观察”。" },
+          { text: "周末，我们一起__了一场演出。", answer: "观看", reason: "看节目、比赛、演出，多用“观看”。" }
+        ],
+        typo: { wrong: "科学课上，我们仔细观看蚂蚁搬家。", answer: "科学课上，我们仔细观察蚂蚁搬家。" }
+      },
+      {
+        words: ["安静", "平静"],
+        prompts: [
+          { text: "上课时，教室里非常__。", answer: "安静", reason: "环境没有声音，多用“安静”。" },
+          { text: "听完老师的话，我的心情渐渐__下来。", answer: "平静", reason: "心情安定下来，多用“平静”。" }
+        ],
+        typo: { wrong: "听完老师的话，我的心情渐渐安静下来。", answer: "听完老师的话，我的心情渐渐平静下来。" }
+      },
+      {
+        words: ["保护", "爱护"],
+        prompts: [
+          { text: "我们要__小动物。", answer: "爱护", reason: "对生命、物品表达珍惜和照顾，多用“爱护”。" },
+          { text: "我们要__森林，不让它被破坏。", answer: "保护", reason: "使不受损害，多用“保护”。" }
+        ],
+        typo: { wrong: "我们要保护校园里的桌椅。", answer: "我们要爱护校园里的桌椅。" }
+      },
+      {
+        words: ["改正", "改进", "改善"],
+        prompts: [
+          { text: "我主动__错别字。", answer: "改正", reason: "把错误改对，用“改正”。" },
+          { text: "老师帮助我们__学习方法。", answer: "改进", reason: "让方法变得更好，用“改进”。" },
+          { text: "大家一起努力，__生活环境。", answer: "改善", reason: "让情况变好，多用“改善”。" }
+        ],
+        typo: { wrong: "我主动改进错别字。", answer: "我主动改正错别字。" }
+      },
+      {
+        words: ["发现", "发明"],
+        prompts: [
+          { text: "我__草丛里有一只小虫。", answer: "发现", reason: "看到或找到以前不知道的事物，用“发现”。" },
+          { text: "科学家__了很多有用的机器。", answer: "发明", reason: "创造出新事物，用“发明”。" }
+        ],
+        typo: { wrong: "我发明草丛里有一只小虫。", answer: "我发现草丛里有一只小虫。" }
+      },
+      {
+        words: ["的", "地", "得"],
+        prompts: [
+          { text: "美丽__花园里开满了花。", answer: "的", reason: "修饰名词“花园”，用“的”。" },
+          { text: "他飞快__跑向操场。", answer: "地", reason: "修饰动作“跑”，用“地”。" },
+          { text: "妹妹笑__很开心。", answer: "得", reason: "补充说明笑的程度，用“得”。" }
+        ],
+        typo: { wrong: "他飞快的跑向操场。", answer: "他飞快地跑向操场。" }
+      }
+    ];
+
+    const els = {
+      grade: document.querySelector("#gradeSelect"),
+      title: document.querySelector("#worksheetTitle"),
+      input: document.querySelector("#wordInput"),
+      localMaterialField: document.querySelector("#localMaterialField"),
+      wordCount: document.querySelector("#wordCount"),
+      date: document.querySelector("#dateText"),
+      generate: document.querySelector("#generateBtn"),
+      print: document.querySelector("#printBtn"),
+      sample: document.querySelector("#sampleBtn"),
+      clear: document.querySelector("#clearBtn"),
+      useApi: document.querySelector("#useApi"),
+      toggleConfig: document.querySelector("#toggleConfigBtn"),
+      apiConfigPanel: document.querySelector("#apiConfigPanel"),
+      apiConfigBadge: document.querySelector("#apiConfigBadge"),
+      apiConfigStatus: document.querySelector("#apiConfigStatus"),
+      apiProvider: document.querySelector("#apiProvider"),
+      apiBaseUrl: document.querySelector("#apiBaseUrl"),
+      apiModel: document.querySelector("#apiModel"),
+      apiKey: document.querySelector("#apiKey"),
+      allowInsecureTLS: document.querySelector("#allowInsecureTLS"),
+      requestTimeout: document.querySelector("#requestTimeout"),
+      fastMode: document.querySelector("#fastMode"),
+      saveConfig: document.querySelector("#saveConfigBtn"),
+      clearConfig: document.querySelector("#clearConfigBtn"),
+      preview: document.querySelector("#preview"),
+      status: document.querySelector("#previewStatus"),
+      statWords: document.querySelector("#statWords"),
+      statQuestions: document.querySelector("#statQuestions"),
+      statPages: document.querySelector("#statPages"),
+      checks: document.querySelector("#typeChecks")
+    };
+
+    const stateKey = "word-practice-generator-state-v2";
+    const configKey = "word-practice-generator-api-config-v1";
+    const apiTypeLabels = {
+      pronunciationChoice: "错字组词辨音",
+      pinyinWriteWord: "看拼音写词语",
+      confusingCharFill: "易混字填空辨析",
+      contextualPinyinWrite: "语境看拼音写词",
+      mixedErrorChoice: "字音字形综合选择",
+      meaningSameChoice: "加点字意思辨析",
+      wordSentence: "组词造句"
+    };
+    const apiQuestionTypes = new Set(Object.keys(apiTypeLabels));
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function todayText() {
+      const now = new Date();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const date = String(now.getDate()).padStart(2, "0");
+      return `${now.getFullYear()}-${month}-${date}`;
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function friendlyNetworkError(error) {
+      const message = String(error?.message || error || "");
+      if (/failed to fetch|networkerror|load failed|cancelled|canceled/i.test(message)) {
+        return "无法连接本机生成服务。请确认 http://127.0.0.1:8797 仍在运行，刷新页面后再生成。";
+      }
+      return message || "请求本机生成服务失败。";
+    }
+
+    function updateGenerationModeUI() {
+      els.localMaterialField.classList.toggle("is-hidden", els.useApi.checked);
+    }
+
+    async function fetchGenerate(payload) {
+      const body = JSON.stringify(payload);
+      let lastError = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          if (attempt > 0) {
+            els.status.textContent = `本机服务连接中断，正在重试 ${attempt + 1}/3...`;
+          }
+          return await fetch("/api/generate", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body
+          });
+        } catch (error) {
+          lastError = error;
+          if (attempt < 2) {
+            await delay([800, 1600][attempt]);
+          }
+        }
+      }
+      throw new Error(friendlyNetworkError(lastError));
+    }
+
+    function setConfigStatus(message, tone = "") {
+      els.apiConfigStatus.textContent = message;
+      els.apiConfigStatus.className = `config-status${tone ? ` ${tone}` : ""}`;
+      els.apiConfigBadge.textContent = tone === "ready" ? "已配置" : "未配置";
+    }
+
+    function readApiConfigFromFields() {
+      return {
+        provider: els.apiProvider.value || "openai",
+        baseUrl: els.apiBaseUrl.value.trim().replace(/\/$/, ""),
+        model: els.apiModel.value.trim(),
+        apiKey: els.apiKey.value.trim(),
+        allowInsecureTLS: els.allowInsecureTLS.checked,
+        timeoutSeconds: Math.min(Math.max(Number(els.requestTimeout.value) || 30, 15), 180),
+        fastMode: els.fastMode.checked
+      };
+    }
+
+    function validateApiConfig(config) {
+      if (!config.baseUrl) return "请填写 Base URL。";
+      if (!/^https?:\/\//.test(config.baseUrl)) return "Base URL 需要以 http:// 或 https:// 开头。";
+      if (!config.model) return "请填写模型名。";
+      if (config.provider === "deepseek" && !config.model.startsWith("deepseek-")) {
+        return "DeepSeek 模型名应使用 deepseek-v4-flash、deepseek-v4-pro 或 deepseek-chat。";
+      }
+      if (!config.apiKey) return "请填写 API Key。";
+      return "";
+    }
+
+    function saveApiConfig() {
+      const config = readApiConfigFromFields();
+      const error = validateApiConfig(config);
+      if (error) {
+        setConfigStatus(error, "error");
+        els.apiConfigPanel.classList.add("open");
+        return false;
+      }
+
+      localStorage.setItem(configKey, JSON.stringify(config));
+      setConfigStatus(`已加载：${config.model} @ ${config.baseUrl}`, "ready");
+      return true;
+    }
+
+    function loadApiConfig() {
+      const saved = localStorage.getItem(configKey);
+      if (!saved) {
+        setConfigStatus("未配置 API。生成前请先填写并保存。", "warn");
+        return null;
+      }
+
+      try {
+        const config = JSON.parse(saved);
+        const inferredProvider = (config.baseUrl || "").includes("deepseek.com") ? "deepseek" : (config.provider || "openai");
+        els.apiProvider.value = inferredProvider;
+        els.apiBaseUrl.value = config.baseUrl || "https://api.openai.com/v1";
+        els.apiModel.value = config.model || "gpt-4.1-mini";
+        els.apiKey.value = config.apiKey || "";
+        els.allowInsecureTLS.checked = Boolean(config.allowInsecureTLS);
+        els.requestTimeout.value = config.timeoutSeconds || 30;
+        els.fastMode.checked = config.fastMode !== false;
+        applyProviderPreset(false);
+        const error = validateApiConfig(readApiConfigFromFields());
+        if (error) {
+          setConfigStatus(error, "warn");
+          return null;
+        }
+        setConfigStatus(`已加载：${els.apiModel.value.trim()} @ ${els.apiBaseUrl.value.trim()}`, "ready");
+        return readApiConfigFromFields();
+      } catch {
+        setConfigStatus("API 配置读取失败，请重新保存。", "error");
+        return null;
+      }
+    }
+
+    function ensureApiConfig() {
+      applyProviderPreset(false);
+      const config = readApiConfigFromFields();
+      const error = validateApiConfig(config);
+      if (error) {
+        setConfigStatus(error, "error");
+        els.apiConfigPanel.classList.add("open");
+        throw new Error(`API 配置未完成：${error}`);
+      }
+      localStorage.setItem(configKey, JSON.stringify(config));
+      setConfigStatus(`已加载：${config.model} @ ${config.baseUrl}`, "ready");
+      return config;
+    }
+
+    function clearApiConfig() {
+      localStorage.removeItem(configKey);
+      els.apiKey.value = "";
+      els.allowInsecureTLS.checked = false;
+      els.requestTimeout.value = 30;
+      els.fastMode.checked = true;
+      setConfigStatus("已清除 API Key。", "warn");
+      els.apiConfigPanel.classList.add("open");
+    }
+
+    function applyProviderPreset(force = false) {
+      if (els.apiProvider.value === "deepseek") {
+        if (force || !els.apiBaseUrl.value.trim() || els.apiBaseUrl.value.includes("openai.com")) {
+          els.apiBaseUrl.value = "https://api.deepseek.com";
+        }
+        if (force || !els.apiModel.value.trim() || els.apiModel.value === "DeepSeek" || els.apiModel.value.startsWith("gpt-")) {
+          els.apiModel.value = "deepseek-v4-flash";
+        }
+      }
+
+      if (els.apiProvider.value === "openai") {
+        if (force || !els.apiBaseUrl.value.trim() || els.apiBaseUrl.value.includes("deepseek.com")) {
+          els.apiBaseUrl.value = "https://api.openai.com/v1";
+        }
+        if (force || !els.apiModel.value.trim() || els.apiModel.value.toLowerCase() === "deepseek") {
+          els.apiModel.value = "gpt-4.1-mini";
+        }
+      }
+    }
+
+    function isCjkChar(char) {
+      return /^[\u3400-\u9fff]$/.test(char);
+    }
+
+    function isCjkText(text) {
+      return Array.from(text).every(isCjkChar);
+    }
+
+    function parseInput(text) {
+      const entries = [];
+      const lines = text.split(/\n+/);
+
+      for (const line of lines) {
+        const raw = line.trim();
+        if (!raw) continue;
+
+        if (raw.includes("|")) {
+          const columns = raw.split("|").map(item => item.trim());
+          const [term, pinyin = "", sentence = "", confusable = "", meaning = "", tag = ""] = columns;
+          if (term) {
+            entries.push({ term, pinyin, sentence, confusable, meaning, tag });
+          }
+          continue;
+        }
+
+        const tokens = raw.split(/[，,、;；\s]+/).map(item => item.trim()).filter(Boolean);
+        for (const token of tokens) {
+          const pair = token.split(/[\/／]/).map(item => item.trim()).filter(Boolean);
+          if (pair.length > 1) {
+            entries.push({ term: pair[0], confusable: pair.slice(1).join(" / "), pair });
+          } else if (isCjkText(token)) {
+            Array.from(token).forEach(char => entries.push({ term: char, sourceChar: char, kind: "char-input" }));
+          } else {
+            entries.push({ term: token });
+          }
+        }
+      }
+
+      const seen = new Set();
+      return entries.filter(entry => {
+        const key = `${entry.term}|${entry.sentence || ""}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function profileEntryFromWord(char, profile, wordData) {
+      const [term, pinyin = "", sentence = "", wrong = "", meaning = ""] = wordData;
+      return {
+        term,
+        pinyin,
+        sentence,
+        confusable: wrong || profile.confusables.join(" / "),
+        meaning,
+        sourceChar: char,
+        kind: "word"
+      };
+    }
+
+    function expandSingleChar(entry) {
+      const char = entry.term;
+      const profile = charProfiles[char];
+      if (!profile) {
+        return [{
+          term: char,
+          pinyin: "",
+          sentence: "",
+          confusable: "",
+          meaning: "这个字暂时没有内置画像，先做书写、听写、组词和造句练习。",
+          sourceChar: char,
+          kind: "char",
+          fallback: true
+        }];
+      }
+
+      const charEntry = {
+        term: char,
+        pinyin: profile.pinyin,
+        sentence: "",
+        confusable: profile.confusables.join(" / "),
+        meaning: profile.meaning,
+        sourceChar: char,
+        kind: "char"
+      };
+      return [charEntry, ...profile.words.map(word => profileEntryFromWord(char, profile, word))];
+    }
+
+    function expandInputEntries(entries) {
+      const expanded = [];
+      for (const entry of entries) {
+        if (Array.from(entry.term).length === 1 && isCjkChar(entry.term)) {
+          expanded.push(...expandSingleChar(entry));
+        } else {
+          expanded.push({ ...entry, sourceChar: entry.sourceChar || entry.term, kind: entry.kind || "manual" });
+        }
+      }
+
+      const seen = new Set();
+      return expanded.filter(entry => {
+        const key = `${entry.term}|${entry.sentence || ""}|${entry.sourceChar || ""}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function countSourceChars(entries) {
+      return new Set(entries.map(entry => entry.sourceChar || entry.term)).size;
+    }
+
+    function selectPracticeEntries(entries, count) {
+      const baseChars = entries.filter(entry => entry.kind === "char");
+      const words = entries.filter(entry => entry.kind !== "char");
+      return [...baseChars, ...shuffle(words)].slice(0, Math.min(count, entries.length));
+    }
+
+    function getSelectedTypes() {
+      return Array.from(els.checks.querySelectorAll("input:checked")).map(input => input.value);
+    }
+
+    function getTypeMultipliers() {
+      const multipliers = {};
+      els.checks.querySelectorAll("[data-type-multiplier]").forEach(select => {
+        multipliers[select.dataset.typeMultiplier] = Math.min(Math.max(Number(select.value) || 1, 1), 3);
+      });
+      return multipliers;
+    }
+
+    function applyTypeMultipliers(multipliers = {}) {
+      els.checks.querySelectorAll("[data-type-multiplier]").forEach(select => {
+        const value = Number(multipliers[select.dataset.typeMultiplier]) || 1;
+        select.value = String(Math.min(Math.max(value, 1), 3));
+      });
+    }
+
+    function updateTypeMultiplierStates() {
+      els.checks.querySelectorAll("[data-type-multiplier]").forEach(select => {
+        const checkbox = els.checks.querySelector(`input[value="${select.dataset.typeMultiplier}"]`);
+        select.disabled = Boolean(checkbox && !checkbox.checked);
+      });
+    }
+
+    function selectedOptionLabel(select) {
+      return select?.selectedOptions?.[0]?.textContent?.trim() || select?.value || "";
+    }
+
+    function shuffle(items) {
+      const copy = [...items];
+      for (let index = copy.length - 1; index > 0; index -= 1) {
+        const target = Math.floor(Math.random() * (index + 1));
+        [copy[index], copy[target]] = [copy[target], copy[index]];
+      }
+      return copy;
+    }
+
+    function take(items, count) {
+      return items.slice(0, Math.max(0, count));
+    }
+
+    function visibleChars(text) {
+      return Array.from(String(text || "").replace(/\s/g, ""));
+    }
+
+    function squaresFor(term, min = 2) {
+      const count = Math.max(min, visibleChars(term).length);
+      return `<span class="square-grid">${Array.from({ length: count }, () => `<span class="square"></span>`).join("")}</span>`;
+    }
+
+    function blankTermInSentence(sentence, term) {
+      if (!sentence || !term) return "";
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return sentence.replace(new RegExp(escaped, "g"), "____");
+    }
+
+    function choiceLine(words) {
+      return `<div class="choices">备选：${words.map(word => `（${escapeHtml(word)}）`).join(" ")}</div>`;
+    }
+
+    function findBankPrompts(entries) {
+      const termSet = new Set();
+      entries.forEach(entry => {
+        termSet.add(entry.term);
+        if (entry.confusable) {
+          entry.confusable.split(/[\/／,，、\s]+/).filter(Boolean).forEach(word => termSet.add(word));
+        }
+      });
+
+      const prompts = [];
+      const typos = [];
+      for (const bank of pairBank) {
+        if (bank.words.some(word => termSet.has(word))) {
+          bank.prompts.forEach(prompt => prompts.push({ ...prompt, words: bank.words }));
+          if (bank.typo) typos.push({ ...bank.typo, words: bank.words });
+        }
+      }
+      return { prompts, typos };
+    }
+
+    function makeFillQuestions(entries, count) {
+      const withSentence = entries
+        .filter(entry => entry.kind !== "char" && entry.sentence && entry.sentence.includes(entry.term))
+        .map(entry => ({
+          prompt: blankTermInSentence(entry.sentence, entry.term),
+          answer: entry.term,
+          choices: []
+        }));
+
+      const questions = take(withSentence, count);
+      const words = take(entries.filter(entry => entry.kind !== "char").map(entry => entry.term), Math.max(count, 6));
+      questions.forEach(question => {
+        question.choices = shuffle(Array.from(new Set([question.answer, ...words]))).slice(0, Math.min(8, Math.max(4, words.length)));
+      });
+      return questions;
+    }
+
+    function makeDiscriminationQuestions(entries, count) {
+      const { prompts } = findBankPrompts(entries);
+      const manual = entries
+        .filter(entry => entry.kind !== "char" && entry.confusable && entry.sentence && entry.sentence.includes(entry.term))
+        .map(entry => {
+          const choices = Array.from(new Set([entry.term, ...entry.confusable.split(/[\/／,，、\s]+/).filter(Boolean)]));
+          return {
+            text: blankTermInSentence(entry.sentence, entry.term),
+            answer: entry.term,
+            reason: entry.meaning ? `意思：${entry.meaning}` : "结合句意和搭配判断。",
+            words: choices
+          };
+        });
+
+      return take([...manual, ...prompts], count);
+    }
+
+    function makeTypoQuestions(entries, count) {
+      const { typos } = findBankPrompts(entries);
+      return take(typos, count);
+    }
+
+    function makeCopyTable(entries, count) {
+      const rows = take(entries, count).map(entry => {
+        const chars = visibleChars(entry.term);
+        const cells = [];
+        chars.forEach(char => cells.push(`<td class="sample">${escapeHtml(char)}</td>`));
+        const blanks = Math.max(8 - chars.length, chars.length * 2);
+        Array.from({ length: blanks }, () => cells.push("<td></td>"));
+        return `<tr>${cells.slice(0, 12).join("")}</tr>`;
+      });
+      return `<table class="copy-table"><tbody>${rows.join("")}</tbody></table>`;
+    }
+
+    function makeDictation(entries, count) {
+      return take(entries, count).map((entry, index) => `
+        <div class="word-row">
+          <span class="word-label">${index + 1}.</span>
+          <span>${squaresFor(entry.term)}</span>
+        </div>
+      `).join("");
+    }
+
+    function makePinyin(entries, count) {
+      const usable = entries.filter(entry => entry.pinyin);
+      return take(usable, count).map((entry, index) => `
+        <div class="question">
+          ${index + 1}. ${escapeHtml(entry.pinyin)} ${squaresFor(entry.term)}
+        </div>
+      `).join("");
+    }
+
+    function makeSentenceQuestions(entries, count) {
+      const words = entries.filter(entry => entry.kind !== "char");
+      const selected = take(words.length ? words : entries, count);
+      const required = "写一句完整、通顺的话。";
+      return selected.map((entry, index) => `
+        <div class="question full">
+          ${index + 1}. 用“${escapeHtml(entry.term)}”造句。<span class="answer-note">${required}</span>
+          <span class="long-line"></span>
+        </div>
+      `).join("");
+    }
+
+    function makeSection(number, title, body) {
+      if (!body) return "";
+      return `
+        <section class="print-section">
+          <h2 class="section-title"><span class="num">${number}</span>${escapeHtml(title)}</h2>
+          ${body}
+        </section>
+      `;
+    }
+
+    function sourceCharsFromEntries(entries) {
+      return Array.from(new Set(entries
+        .map(entry => entry.sourceChar || entry.term)
+        .flatMap(term => Array.from(String(term || "")))
+        .filter(isCjkChar)));
+    }
+
+    function apiQuestionCount(payload) {
+      return (payload.sections || []).reduce((total, section) => total + (section.questions || []).length, 0);
+    }
+
+    function optionLetter(index) {
+      return String.fromCharCode(65 + index);
+    }
+
+    function renderOptionList(options) {
+      if (!Array.isArray(options) || !options.length) return "";
+      return `
+        <div class="choices">
+          ${options.map((option, index) => `${optionLetter(index)}. ${escapeHtml(stripOptionPrefix(option))}`).join("　")}
+        </div>
+      `;
+    }
+
+    function chineseSerial(index) {
+      return ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"][index] || `${index + 1}`;
+    }
+
+    function getQuestionWord(question) {
+      return question.word || question.term || question.answerText || question.answerWord || question.targetWord || "";
+    }
+
+    function getQuestionPinyin(question) {
+      return question.pinyin || question.reading || question.promptPinyin || question.answerPinyin || "";
+    }
+
+    function splitPinyin(pinyin) {
+      return String(pinyin || "")
+        .replace(/-/g, " ")
+        .split(/\s+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+    }
+
+    function getWriteCount(question) {
+      const word = getQuestionWord(question);
+      if (word && /[\u3400-\u9fff]/.test(word)) return visibleChars(word).length;
+      const pinyinCount = splitPinyin(getQuestionPinyin(question)).length;
+      if (pinyinCount) return pinyinCount;
+      return Math.max(2, Number(question.charCount) || 2);
+    }
+
+    function renderPracticeSquares(count) {
+      return `<span class="practice-squares">${Array.from({ length: Math.max(1, count) }, () => `<span class="practice-square"></span>`).join("")}</span>`;
+    }
+
+    function renderPinyinRow(pinyin, count) {
+      const syllables = splitPinyin(pinyin);
+      const cells = Array.from({ length: Math.max(count, syllables.length || 1) }, (_, index) => syllables[index] || "");
+      return `<div class="pinyin-row">${cells.map(item => `<span>${escapeHtml(item)}</span>`).join("")}</div>`;
+    }
+
+    function renderPinyinBox(question) {
+      const count = getWriteCount(question);
+      return `
+        <span class="inline-write">
+          <span class="write-box">
+            ${renderPinyinRow(getQuestionPinyin(question), count)}
+            ${renderPracticeSquares(count)}
+          </span>
+        </span>
+      `;
+    }
+
+    function renderBookletHeader(payload, options) {
+      const meta = [options.grade].filter(Boolean).join(" · ");
+      return `
+        <header class="booklet-header">
+          <div class="booklet-kicker">
+            <span><span class="booklet-pill">字词专项</span>　${escapeHtml(meta)}　${escapeHtml(options.dateText || "")}</span>
+            <span class="booklet-name-line">姓名</span>
+          </div>
+          <h1 class="booklet-title">${escapeHtml(payload.title || options.title)}</h1>
+        </header>
+      `;
+    }
+
+    function renderBookletFooter() {
+      return `
+        <footer class="booklet-footer">
+          <span>建议用时: 10分钟</span>
+          <span>实际用时: ____分钟</span>
+          <span>自我评价: ☆☆☆</span>
+        </footer>
+      `;
+    }
+
+    function renderPronunciationQuestion(question) {
+      const word = getQuestionWord(question) || question.stem || question.text || "";
+      const target = question.char || question.targetChar || "";
+      const displayWord = target && word.includes(target)
+        ? word.replace(target, `<span class="dot-char">${escapeHtml(target)}</span>`)
+        : escapeHtml(word);
+      const options = Array.isArray(question.options) ? question.options : [];
+      return `<div class="pronunciation-item">${displayWord}${options.length ? `（${options.map(item => escapeHtml(stripOptionPrefix(item))).join("　")}）` : ""}</div>`;
+    }
+
+    function renderPinyinWriteQuestion(question) {
+      const count = getWriteCount(question);
+      return `
+        <div class="pinyin-write-item">
+          <span class="write-box">
+            ${renderPinyinRow(getQuestionPinyin(question), count)}
+            ${renderPracticeSquares(count)}
+          </span>
+        </div>
+      `;
+    }
+
+    function stripOptionPrefix(value) {
+      return optionText(value).replace(/^(?:\s*[A-Ha-hＡ-Ｈａ-ｈ][\.\、．:：]\s*)+/, "").trim();
+    }
+
+    function optionText(value) {
+      if (value && typeof value === "object") {
+        if (Array.isArray(value.words)) return value.words.join(" ");
+        return String(value.text || value.label || value.value || "");
+      }
+      return String(value || "");
+    }
+
+    function renderFillQuestion(question, index) {
+      const stem = question.stem || question.prompt || question.sentence || question.text || "";
+      const options = Array.isArray(question.options) ? question.options : [];
+      return `
+        <div>
+          ${index + 1}. ${escapeHtml(stem)}
+          ${options.length ? `<div class="choices">${options.map(item => `（${escapeHtml(stripOptionPrefix(item))}）`).join(" ")}</div>` : ""}
+        </div>
+      `;
+    }
+
+    function renderChoiceQuestion(question, index) {
+      const stem = question.stem || question.prompt || question.sentence || question.text || "";
+      const options = Array.isArray(question.options) ? question.options : [];
+      return `
+        <div>
+          <div>${index + 1}. ${escapeHtml(stem)}</div>
+          ${options.length ? `<div class="choice-options">${options.map((item, optionIndex) => `<span>${optionLetter(optionIndex)}. ${escapeHtml(stripOptionPrefix(item))}</span>`).join("")}</div>` : ""}
+        </div>
+      `;
+    }
+
+    function meaningWordsFromOption(option) {
+      if (option && typeof option === "object" && Array.isArray(option.words)) {
+        return option.words.map(word => String(word || "").trim()).filter(Boolean);
+      }
+
+      const text = stripOptionPrefix(option)
+        .replace(/[（）()【】\[\]]/g, " ")
+        .replace(/\s*[·•]\s*/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      const rawWords = text
+        .split(/[、，,；;\/／|\s]+/)
+        .map(word => word.trim())
+        .filter(Boolean);
+      const words = [];
+
+      for (let index = 0; index < rawWords.length; index += 1) {
+        const current = rawWords[index];
+        const next = rawWords[index + 1];
+        if (/^[\u3400-\u9fff]$/.test(current) && /^[\u3400-\u9fff]$/.test(next || "")) {
+          words.push(current + next);
+          index += 1;
+        } else {
+          words.push(current);
+        }
+      }
+
+      return words;
+    }
+
+    function areConfusableChars(left, right) {
+      if (!left || !right) return false;
+      if (left === right) return true;
+      const leftProfile = charProfiles[left];
+      const rightProfile = charProfiles[right];
+      return Boolean(
+        (leftProfile && leftProfile.confusables.includes(right)) ||
+        (rightProfile && rightProfile.confusables.includes(left))
+      );
+    }
+
+    function inferMeaningTargetChars(words, option, question) {
+      const explicitTargets = option && typeof option === "object" && Array.isArray(option.targetChars)
+        ? option.targetChars.map(char => String(char || "").trim()).filter(Boolean)
+        : [];
+      if (explicitTargets.length === words.length) {
+        return explicitTargets;
+      }
+
+      const explicit = option && typeof option === "object"
+        ? option.char || option.targetChar || option.keyChar
+        : "";
+      const questionTarget = question.targetChar || question.char || question.keyChar || "";
+      const candidates = [explicit, questionTarget].filter(Boolean);
+      for (const candidate of candidates) {
+        if (words.every(word => word.includes(candidate))) return words.map(() => candidate);
+      }
+
+      const firstWordChars = Array.from(words[0] || "").filter(isCjkChar);
+      const commonChar = firstWordChars.find(char => words.length > 1 && words.every(word => word.includes(char)));
+      if (commonChar) return words.map(() => commonChar);
+
+      if (words.length < 2) return [];
+
+      const charLists = words.map(word => Array.from(word || "").filter(isCjkChar));
+      for (const firstChar of charLists[0]) {
+        const picked = [firstChar];
+        let matched = true;
+        for (let index = 1; index < charLists.length; index += 1) {
+          const related = charLists[index].find(char => areConfusableChars(firstChar, char));
+          if (!related) {
+            matched = false;
+            break;
+          }
+          picked.push(related);
+        }
+        if (matched) return picked;
+      }
+
+      return [];
+    }
+
+    function renderDottedWord(word, targetChar) {
+      return Array.from(String(word || "")).map(char => {
+        if (targetChar && char === targetChar) {
+          return `<span class="dot-char">${escapeHtml(char)}</span>`;
+        }
+        return escapeHtml(char);
+      }).join("");
+    }
+
+    function renderMeaningOption(option, question) {
+      const words = meaningWordsFromOption(option);
+      const targetChars = inferMeaningTargetChars(words, option, question);
+      if (!words.length) {
+        return escapeHtml(stripOptionPrefix(option));
+      }
+      if (targetChars.length !== words.length) {
+        return words.map(word => escapeHtml(word)).join("　");
+      }
+      return words.map((word, index) => renderDottedWord(word, targetChars[index])).join("　");
+    }
+
+    function renderMeaningChoiceQuestion(question, index) {
+      const stem = question.stem || question.prompt || question.sentence || question.text || "";
+      const options = Array.isArray(question.options) ? question.options : [];
+      return `
+        <div>
+          <div>${index + 1}. ${escapeHtml(stem)}</div>
+          ${options.length ? `<div class="choice-options meaning-options">${options.map((item, optionIndex) => `<span class="meaning-option">${optionLetter(optionIndex)}. ${renderMeaningOption(item, question)}</span>`).join("")}</div>` : ""}
+        </div>
+      `;
+    }
+
+    function renderContextualPinyinQuestion(question, index) {
+      const stem = question.stem || question.prompt || question.sentence || question.text || "";
+      const placeholder = /(____+|_{2,}|（\s*）|\(\s*\)|\[　*\]|【　*】)/g;
+      const raw = String(stem);
+      let lastIndex = 0;
+      let inserted = false;
+      let html = "";
+      let match;
+
+      while ((match = placeholder.exec(raw))) {
+        html += escapeHtml(raw.slice(lastIndex, match.index));
+        if (!inserted) {
+          html += renderPinyinBox(question);
+          inserted = true;
+        } else {
+          html += escapeHtml(match[0]);
+        }
+        lastIndex = match.index + match[0].length;
+      }
+
+      html += escapeHtml(raw.slice(lastIndex));
+      if (!inserted) {
+        html += ` ${renderPinyinBox(question)}`;
+      }
+
+      return `<div class="context-question">${index + 1}. ${html}</div>`;
+    }
+
+    function renderSentenceQuestion(question, index) {
+      const word = getQuestionWord(question) || question.stem || "";
+      return `
+        <div class="context-question">
+          ${index + 1}. 用“${escapeHtml(word)}”组词并造句。
+          <span class="sentence-line"></span>
+        </div>
+      `;
+    }
+
+    function renderApiSectionBody(section) {
+      const questions = section.questions || [];
+      if (section.type === "pronunciationChoice") {
+        return `<div class="pronunciation-grid">${questions.map(renderPronunciationQuestion).join("")}</div>`;
+      }
+      if (section.type === "pinyinWriteWord") {
+        return `<div class="pinyin-card-grid">${questions.map(renderPinyinWriteQuestion).join("")}</div>`;
+      }
+      if (section.type === "confusingCharFill") {
+        return `<div class="fill-grid">${questions.map(renderFillQuestion).join("")}</div>`;
+      }
+      if (section.type === "contextualPinyinWrite") {
+        return `<div>${questions.map(renderContextualPinyinQuestion).join("")}</div>`;
+      }
+      if (section.type === "wordSentence") {
+        return `<div>${questions.map(renderSentenceQuestion).join("")}</div>`;
+      }
+      if (section.type === "meaningSameChoice") {
+        return `<div class="choice-question-list">${questions.map(renderMeaningChoiceQuestion).join("")}</div>`;
+      }
+      return `<div class="choice-question-list">${questions.map(renderChoiceQuestion).join("")}</div>`;
+    }
+
+    function renderApiSection(section, index) {
+      const instruction = section.instruction ? `<p class="answer-note">${escapeHtml(section.instruction)}</p>` : "";
+      return `
+        <section class="booklet-section">
+          <h2 class="booklet-section-title"><span class="serial">${chineseSerial(index)}、</span>${escapeHtml(section.title || apiTypeLabels[section.type] || `第 ${index + 1} 题`)}</h2>
+          ${instruction}
+          ${renderApiSectionBody(section)}
+        </section>
+      `;
+    }
+
+    function renderApiQuestion(question, index, sectionType) {
+      const stem = question.stem || question.prompt || question.sentence || question.text || "";
+      const lead = question.word || question.term ? `（${escapeHtml(question.word || question.term)}）` : "";
+      const options = Array.isArray(question.options) ? question.options : [];
+      const needsLine = !options.length || sectionType === "wordSentence" || sectionType === "pinyinWriteWord" || sectionType === "contextualPinyinWrite";
+      return `
+        <div class="question full">
+          ${index + 1}. ${lead}${escapeHtml(stem)}
+          ${renderOptionList(options)}
+          ${needsLine ? `<span class="long-line"></span>` : ""}
+        </div>
+      `;
+    }
+
+    function makeApiWorksheet(payload, options) {
+      const sections = (payload.sections || []).map(renderApiSection);
+
+      return `
+        <article class="sheet practice-sheet">
+          ${renderBookletHeader(payload, options)}
+          ${sections.join("")}
+          ${renderBookletFooter()}
+        </article>
+      `;
+    }
+
+    function answerTextFromQuestion(question) {
+      if (question.answerText) return question.answerText;
+      if (question.answer && Array.isArray(question.options) && /^[A-Z]$/.test(question.answer)) {
+        const index = question.answer.charCodeAt(0) - 65;
+        return stripOptionPrefix(question.options[index]) || question.answer;
+      }
+      return stripOptionPrefix(question.answer) || "";
+    }
+
+    function answerItemForQuestion(answerItems, question, index) {
+      if (!Array.isArray(answerItems)) return null;
+      return answerItems.find(item => item && question.id && item.id === question.id)
+        || answerItems[index]
+        || null;
+    }
+
+    function optionReasonSource(container, optionIndex) {
+      if (!container || typeof container !== "object") return "";
+      const fields = [
+        container.optionExplanations,
+        container.optionReasons,
+        container.optionAnalysis,
+        container.explanations,
+        container.reasons
+      ];
+      const letter = optionLetter(optionIndex);
+
+      for (const field of fields) {
+        if (!field) continue;
+        let value = "";
+        if (Array.isArray(field)) {
+          value = field[optionIndex];
+        } else if (typeof field === "object") {
+          value = field[letter] ?? field[letter.toLowerCase()] ?? field[optionIndex] ?? field[String(optionIndex)];
+        }
+        if (value && typeof value === "object") {
+          value = value.explanation || value.reason || value.analysis || value.text || "";
+        }
+        if (value) return String(value);
+      }
+
+      return "";
+    }
+
+    function optionOwnReason(option) {
+      if (!option || typeof option !== "object") return "";
+      return String(option.explanation || option.reason || option.analysis || option.textReason || "");
+    }
+
+    function meaningOptionFallbackReason(option, question, optionIndex, answerLetter) {
+      const same = option && typeof option === "object" ? option.sameMeaning ?? option.same ?? option.isSameMeaning : undefined;
+      if (typeof same === "boolean") {
+        return same ? "加点字意思相同。" : "加点字意思不同。";
+      }
+      return optionLetter(optionIndex) === answerLetter ? "加点字意思相同。" : "加点字意思不同。";
+    }
+
+    function meaningOptionReason(option, question, answerItem, optionIndex, answerLetter) {
+      return optionOwnReason(option)
+        || optionReasonSource(question, optionIndex)
+        || optionReasonSource(answerItem, optionIndex)
+        || meaningOptionFallbackReason(option, question, optionIndex, answerLetter);
+    }
+
+    function renderMeaningAnswerBody(section, answerItems) {
+      const questions = section.questions || [];
+      const items = questions.map((question, index) => {
+        const answerItem = answerItemForQuestion(answerItems, question, index) || {};
+        const answerLetter = String(answerItem.answer || question.answer || "").trim().toUpperCase();
+        const answerIndex = /^[A-Z]$/.test(answerLetter) ? answerLetter.charCodeAt(0) - 65 : -1;
+        const answerText = stripOptionPrefix(answerItem.answerText || (answerIndex >= 0 ? question.options?.[answerIndex] : "") || answerTextFromQuestion(question));
+        const explanation = answerItem.explanation || question.explanation || "";
+        const options = Array.isArray(question.options) ? question.options : [];
+
+        return `
+          <li class="answer-detail">
+            <div class="answer-head">${index + 1}. ${escapeHtml(answerLetter || "答案")} ${answerText ? `：${escapeHtml(answerText)}` : ""} <span class="answer-note">${escapeHtml(explanation)}</span></div>
+            ${options.length ? `
+              <ul class="option-analysis-list">
+                ${options.map((option, optionIndex) => `
+                  <li>
+                    <span class="option-letter">${optionLetter(optionIndex)}.</span>
+                    <span>${renderMeaningOption(option, question)}</span>
+                    <span class="answer-note">：${escapeHtml(meaningOptionReason(option, question, answerItem, optionIndex, answerLetter))}</span>
+                  </li>
+                `).join("")}
+              </ul>
+            ` : ""}
+          </li>
+        `;
+      }).join("");
+
+      return `<ol class="answer-list detailed">${items}</ol>`;
+    }
+
+    function makeApiAnswerKey(payload, options) {
+      const answerMap = new Map();
+      (payload.answerKey || []).forEach(section => {
+        const key = section.sectionType || section.type;
+        if (key) answerMap.set(key, section.items || []);
+      });
+
+      const sections = (payload.sections || []).map((section, index) => {
+        const answers = answerMap.get(section.type);
+        const items = answers && answers.length
+          ? answers
+          : (section.questions || []).map(question => ({
+              id: question.id,
+              answer: question.answer,
+              answerText: answerTextFromQuestion(question),
+              explanation: question.explanation
+            }));
+
+        if (section.type === "meaningSameChoice") {
+          return makeSection(index + 1, section.title || apiTypeLabels[section.type] || `第 ${index + 1} 题`, renderMeaningAnswerBody(section, items));
+        }
+
+        const body = `<ol class="answer-list">${items.map(item => {
+          const answer = stripOptionPrefix(item.answerText || item.answer || "");
+          const prefix = item.answer && item.answerText && item.answer !== item.answerText ? `${item.answer}. ` : "";
+          const note = Array.isArray(item.corrections) && item.corrections.length ? item.corrections.join("；") : (item.explanation || "");
+          return `<li>${escapeHtml(prefix + answer)} <span class="answer-note">${escapeHtml(note)}</span></li>`;
+        }).join("")}</ol>`;
+        return makeSection(index + 1, section.title || apiTypeLabels[section.type] || `第 ${index + 1} 题`, body);
+      });
+
+      return `
+        <article class="sheet">
+          <header class="worksheet-header">
+            <h1 class="worksheet-title">${escapeHtml(payload.title || options.title)} 答案</h1>
+            <div class="worksheet-meta">
+              <span>${escapeHtml(options.dateText)}</span>
+            </div>
+          </header>
+          ${sections.join("")}
+        </article>
+      `;
+    }
+
+    async function generateWithApi(rawEntries, options) {
+      const wrongChars = sourceCharsFromEntries(rawEntries);
+      if (!wrongChars.length) {
+        throw new Error("请先输入至少一个错误单字。");
+      }
+      if (window.location.protocol === "file:") {
+        throw new Error("API 模式需要通过 server.js 打开：在本目录运行 node server.js 后访问服务启动日志里的地址，默认是 http://127.0.0.1:8797。");
+      }
+
+      const apiConfig = ensureApiConfig();
+      els.status.textContent = "正在请求大模型生成题目...";
+      const response = await fetchGenerate({
+        title: options.title,
+        grade: options.grade,
+        textbookVersion: "统编版小学语文",
+        wrongChars,
+        types: options.types.filter(type => apiQuestionTypes.has(type)),
+        typeMultipliers: options.typeMultipliers,
+        apiConfig
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || `API 请求失败：${response.status}`);
+      }
+
+      const pages = [makeApiWorksheet(payload, options)];
+      if (options.types.includes("answer")) {
+        pages.push(makeApiAnswerKey(payload, options));
+      }
+      els.preview.innerHTML = pages.join("");
+      const questionTotal = apiQuestionCount(payload);
+      updateStats(wrongChars.length, questionTotal, pages.length);
+      const repaired = Number(payload.repairInfo?.replaced || 0);
+      const fallbackMode = payload.repairInfo?.mode === "local-material-fallback";
+      els.status.textContent = fallbackMode
+        ? `接口素材生成失败，已用本地保守素材生成 ${questionTotal} 道题`
+        : repaired
+        ? `已从 ${wrongChars.length} 个错字生成 ${questionTotal} 道 API 题，自动补题 ${repaired} 道`
+        : `已从 ${wrongChars.length} 个错字生成 ${questionTotal} 道题`;
+    }
+
+    function makeWorksheet(entries, options) {
+      const selected = options.types;
+      const questionCount = options.coverageCount || countSourceChars(entries) || entries.length;
+      let sectionNumber = 1;
+      let questionTotal = 0;
+      const sections = [];
+
+      if (selected.includes("dictation")) {
+        sections.push(makeSection(sectionNumber++, "听写格", makeDictation(entries, options.wordCount)));
+        questionTotal += Math.min(entries.length, options.wordCount);
+      }
+
+      if (selected.includes("copy")) {
+        const rows = makeCopyTable(entries, Math.min(questionCount, entries.length));
+        sections.push(makeSection(sectionNumber++, "规范书写", rows));
+        questionTotal += Math.min(questionCount, entries.length);
+      }
+
+      if (selected.includes("pinyin")) {
+        const body = makePinyin(entries, questionCount);
+        if (body) {
+          sections.push(makeSection(sectionNumber++, "看拼音写词语", `<div class="question-grid">${body}</div>`));
+          questionTotal += Math.min(entries.filter(entry => entry.pinyin).length, questionCount);
+        }
+      }
+
+      if (selected.includes("fill")) {
+        const fill = makeFillQuestions(entries, questionCount);
+        if (fill.length) {
+          const bank = Array.from(new Set(fill.flatMap(item => item.choices)));
+          const body = `
+            <div class="word-bank">${bank.map(word => `<span class="pill">${escapeHtml(word)}</span>`).join("")}</div>
+            <div class="question-grid">
+              ${fill.map((item, index) => `
+                <div class="question full">${index + 1}. ${escapeHtml(item.prompt)}</div>
+              `).join("")}
+            </div>
+          `;
+          sections.push(makeSection(sectionNumber++, "选词填空", body));
+          questionTotal += fill.length;
+        }
+      }
+
+      if (selected.includes("discriminate")) {
+        const questions = makeDiscriminationQuestions(entries, questionCount);
+        if (questions.length) {
+          const body = `<div class="question-grid">
+            ${questions.map((item, index) => `
+              <div class="question full">
+                ${index + 1}. ${escapeHtml(item.text)}
+                ${choiceLine(item.words)}
+              </div>
+            `).join("")}
+          </div>`;
+          sections.push(makeSection(sectionNumber++, "词语辨析", body));
+          questionTotal += questions.length;
+        }
+      }
+
+      if (selected.includes("typo")) {
+        const questions = makeTypoQuestions(entries, questionCount);
+        if (questions.length) {
+          const body = `<div class="question-grid">
+            ${questions.map((item, index) => `
+              <div class="question full">${index + 1}. ${escapeHtml(item.wrong)}<br>改为：<span class="line-answer"></span></div>
+            `).join("")}
+          </div>`;
+          sections.push(makeSection(sectionNumber++, "改错题", body));
+          questionTotal += questions.length;
+        }
+      }
+
+      if (selected.includes("sentence")) {
+        const body = makeSentenceQuestions(entries, questionCount);
+        sections.push(makeSection(sectionNumber++, "造句应用", `<div class="question-grid">${body}</div>`));
+        questionTotal += Math.min(questionCount, entries.length);
+      }
+
+      const sheet = `
+        <article class="sheet">
+          <header class="worksheet-header">
+            <h1 class="worksheet-title">${escapeHtml(options.title)}</h1>
+            <div class="worksheet-meta">
+              <span>${escapeHtml(options.grade)}</span>
+              <span class="meta-line">姓名</span>
+              <span class="meta-line">日期</span>
+              <span class="meta-line">用时</span>
+            </div>
+          </header>
+          ${sections.join("")}
+        </article>
+      `;
+
+      return { sheet, questionTotal };
+    }
+
+    function makeAnswerKey(entries, options) {
+      const selected = options.types;
+      const questionCount = options.coverageCount || countSourceChars(entries) || entries.length;
+      let sectionNumber = 1;
+      const sections = [];
+
+      if (selected.includes("dictation")) {
+        const words = entries.slice(0, options.wordCount).map(entry => entry.term);
+        sections.push(makeSection(sectionNumber++, "听写词语", `<ol class="answer-list">${words.map(word => `<li>${escapeHtml(word)}</li>`).join("")}</ol>`));
+      }
+
+      if (selected.includes("pinyin")) {
+        const usable = entries.filter(entry => entry.pinyin).slice(0, questionCount);
+        if (usable.length) {
+          sections.push(makeSection(sectionNumber++, "看拼音写词语", `<ol class="answer-list">${usable.map(entry => `<li>${escapeHtml(entry.pinyin)}：${escapeHtml(entry.term)}</li>`).join("")}</ol>`));
+        }
+      }
+
+      if (selected.includes("fill")) {
+        const fill = makeFillQuestions(entries, questionCount);
+        if (fill.length) {
+          sections.push(makeSection(sectionNumber++, "选词填空", `<ol class="answer-list">${fill.map(item => `<li>${escapeHtml(item.answer)}</li>`).join("")}</ol>`));
+        }
+      }
+
+      if (selected.includes("discriminate")) {
+        const questions = makeDiscriminationQuestions(entries, questionCount);
+        if (questions.length) {
+          sections.push(makeSection(sectionNumber++, "词语辨析", `<ol class="answer-list">${questions.map(item => `<li>${escapeHtml(item.answer)} <span class="answer-note">${escapeHtml(item.reason || "")}</span></li>`).join("")}</ol>`));
+        }
+      }
+
+      if (selected.includes("typo")) {
+        const questions = makeTypoQuestions(entries, questionCount);
+        if (questions.length) {
+          sections.push(makeSection(sectionNumber++, "改错题", `<ol class="answer-list">${questions.map(item => `<li>${escapeHtml(item.answer)}</li>`).join("")}</ol>`));
+        }
+      }
+
+      if (selected.includes("sentence")) {
+        sections.push(makeSection(sectionNumber++, "造句应用", `<p class="answer-note">检查句子是否完整、通顺，是否正确使用目标词语；高层级训练可增加细节、动作或心情描写。</p>`));
+      }
+
+      return `
+        <article class="sheet">
+          <header class="worksheet-header">
+            <h1 class="worksheet-title">${escapeHtml(options.title)} 答案</h1>
+            <div class="worksheet-meta">
+              <span>${escapeHtml(options.dateText)}</span>
+            </div>
+          </header>
+          ${sections.join("")}
+        </article>
+      `;
+    }
+
+    function collectOptions() {
+      return {
+        grade: els.grade.value,
+        title: els.title.value.trim() || "字词练习",
+        types: getSelectedTypes(),
+        typeMultipliers: getTypeMultipliers(),
+        wordCount: Number(els.wordCount.value) || 12,
+        dateText: els.date.value.trim() || todayText()
+      };
+    }
+
+    async function generate() {
+      const rawEntries = parseInput(els.input.value);
+      const entries = expandInputEntries(rawEntries);
+      const options = collectOptions();
+
+      if (!rawEntries.length) {
+        els.preview.innerHTML = `<div class="empty-state">输入错误单字后生成练习页</div>`;
+        updateStats(0, 0, 0);
+        els.status.textContent = "等待生成";
+        saveState();
+        return;
+      }
+
+      if (els.useApi.checked) {
+        try {
+          await generateWithApi(rawEntries, options);
+        } catch (error) {
+          els.preview.innerHTML = `<div class="empty-state">${escapeHtml(error.message || "API 生成失败")}</div>`;
+          updateStats(sourceCharsFromEntries(rawEntries).length, 0, 0);
+          els.status.textContent = "API 生成失败";
+        }
+        saveState();
+        return;
+      }
+
+      const localOptions = {
+        ...options,
+        coverageCount: countSourceChars(rawEntries),
+        types: ["dictation", "copy", "pinyin", "fill", "discriminate", "typo", "sentence", ...(options.types.includes("answer") ? ["answer"] : [])]
+      };
+      const selectedEntries = selectPracticeEntries(entries, options.wordCount);
+      const { sheet, questionTotal } = makeWorksheet(selectedEntries, localOptions);
+      const pages = [sheet];
+      if (options.types.includes("answer")) {
+        pages.push(makeAnswerKey(selectedEntries, localOptions));
+      }
+
+      els.preview.innerHTML = pages.join("");
+      updateStats(entries.length, questionTotal, pages.length);
+      els.status.textContent = `本地兜底：已从 ${countSourceChars(rawEntries)} 个错字生成 ${questionTotal} 道题`;
+      saveState();
+    }
+
+    function updateStats(words, questions, pages) {
+      els.statWords.textContent = words;
+      els.statQuestions.textContent = questions;
+      els.statPages.textContent = pages;
+    }
+
+    function saveState() {
+      const data = {
+        grade: els.grade.value,
+        title: els.title.value,
+        input: els.input.value,
+        wordCount: els.wordCount.value,
+        date: els.date.value,
+        useApi: els.useApi.checked,
+        types: getSelectedTypes(),
+        typeMultipliers: getTypeMultipliers()
+      };
+      localStorage.setItem(stateKey, JSON.stringify(data));
+    }
+
+    function restoreState() {
+      els.date.value = todayText();
+      const saved = localStorage.getItem(stateKey);
+      if (!saved) {
+        els.input.value = sampleText;
+        return;
+      }
+
+      try {
+        const data = JSON.parse(saved);
+        els.grade.value = data.grade || els.grade.value;
+        els.title.value = data.title || els.title.value;
+        els.input.value = data.input || sampleText;
+        els.wordCount.value = data.wordCount || els.wordCount.value;
+        els.date.value = data.date || todayText();
+        els.useApi.checked = data.useApi !== false;
+        if (Array.isArray(data.types)) {
+          els.checks.querySelectorAll("input").forEach(input => {
+            input.checked = data.types.includes(input.value);
+          });
+        }
+        applyTypeMultipliers(data.typeMultipliers || {});
+        updateTypeMultiplierStates();
+      } catch {
+        els.input.value = sampleText;
+      }
+    }
+
+    els.generate.addEventListener("click", () => {
+      generate();
+    });
+    els.print.addEventListener("click", async () => {
+      await generate();
+      window.print();
+    });
+    els.sample.addEventListener("click", () => {
+      els.input.value = sampleText;
+      saveState();
+      els.status.textContent = "示例已填入，点击生成练习开始。";
+    });
+    els.clear.addEventListener("click", () => {
+      els.input.value = "";
+      saveState();
+      els.preview.innerHTML = `<div class="empty-state">输入错误单字后生成练习页</div>`;
+      updateStats(0, 0, 0);
+      els.status.textContent = "已清空";
+    });
+    els.toggleConfig.addEventListener("click", () => {
+      els.apiConfigPanel.classList.toggle("open");
+    });
+    els.saveConfig.addEventListener("click", () => {
+      saveApiConfig();
+    });
+    els.clearConfig.addEventListener("click", () => {
+      clearApiConfig();
+    });
+    els.apiProvider.addEventListener("change", () => {
+      applyProviderPreset(true);
+      setConfigStatus("已切换接口预设，请检查 API Key 后保存。", "warn");
+    });
+
+    [els.grade, els.title, els.input, els.wordCount, els.date, els.useApi].forEach(el => {
+      el.addEventListener("change", () => {
+        updateGenerationModeUI();
+        saveState();
+      });
+    });
+    els.checks.querySelectorAll(".type-multiplier").forEach(select => {
+      select.addEventListener("click", event => event.stopPropagation());
+    });
+    els.checks.addEventListener("change", () => {
+      updateTypeMultiplierStates();
+      saveState();
+    });
+
+    restoreState();
+    updateTypeMultiplierStates();
+    updateGenerationModeUI();
+    const loadedConfig = loadApiConfig();
+    if (els.useApi.checked && !loadedConfig) {
+      els.apiConfigPanel.classList.add("open");
+      els.preview.innerHTML = `<div class="empty-state">保存 API 配置后点击生成练习</div>`;
+      els.status.textContent = "请先保存 API 配置";
+    } else {
+      els.status.textContent = "配置已加载，点击生成练习开始。";
+    }
+  </script>
+</body>
+</html>
