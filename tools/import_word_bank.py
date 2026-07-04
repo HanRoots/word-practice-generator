@@ -166,6 +166,17 @@ def parse_tables(path, char_entries, word_entries, source_summary):
                         "source": path.name
                     })
                     continue
+                if len(cells) >= 3 and cjk_chars(cells[1]) and has_pinyin(cells[2]):
+                    add_word_entry(word_entries, {
+                        "grade": grade,
+                        "volume": volume,
+                        "sourceGrade": grade_label,
+                        "lesson": "",
+                        "word": cells[1].strip(),
+                        "pinyin": clean_pinyin(cells[2]),
+                        "source": path.name
+                    })
+                    continue
                 if len(cells) >= 4 and cjk_chars(cells[2]) and has_pinyin(cells[3]):
                     add_word_entry(word_entries, {
                         "grade": grade,
