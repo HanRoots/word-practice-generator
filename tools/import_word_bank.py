@@ -216,6 +216,8 @@ def main():
     word_entries = {}
     sources = []
     for path in sorted(source_dir.glob("*.docx")):
+        if path.name.startswith(("~$", ".~")):
+            continue
         parse_tables(path, char_entries, word_entries, sources)
 
     chars = sorted(char_entries.values(), key=lambda item: (item["grade"], item["volume"], item["source"], item["char"]))
