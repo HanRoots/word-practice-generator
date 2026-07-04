@@ -1085,7 +1085,7 @@
       <div class="field">
         <span class="label">题型</span>
         <div class="checks" id="typeChecks">
-          <label class="check"><input type="checkbox" value="copyPractice" checked> <span class="check-name">抄写</span><select class="type-multiplier" data-type-multiplier="copyPractice"><option value="1">1遍</option><option value="2">2遍</option><option value="3">3遍</option></select></label>
+          <label class="check"><input type="checkbox" value="copyPractice" checked> <span class="check-name">抄写</span><select class="type-multiplier" data-type-multiplier="copyPractice"><option value="1">1遍</option><option value="2">2遍</option><option value="3">3遍</option><option value="4">4遍</option><option value="5">5遍</option></select></label>
           <label class="check"><input type="checkbox" value="pronunciationChoice" checked> <span class="check-name">组词辨音</span><select class="type-multiplier" data-type-multiplier="pronunciationChoice"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
           <label class="check"><input type="checkbox" value="pinyinWriteWord" checked> <span class="check-name">看拼音写词</span><select class="type-multiplier" data-type-multiplier="pinyinWriteWord"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
           <label class="check"><input type="checkbox" value="confusingCharFill" checked> <span class="check-name">易混字填空</span><select class="type-multiplier" data-type-multiplier="confusingCharFill"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
@@ -1653,6 +1653,14 @@
       return `${now.getFullYear()}-${month}-${date}`;
     }
 
+    function syncTodayDate() {
+      const today = todayText();
+      if (els.date.value !== today) {
+        els.date.value = today;
+      }
+      return today;
+    }
+
     function delay(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -1931,18 +1939,24 @@
       return Array.from(els.checks.querySelectorAll("input:checked")).map(input => input.value);
     }
 
+    function maxTypeMultiplier(type) {
+      return type === "copyPractice" ? 5 : 3;
+    }
+
     function getTypeMultipliers() {
       const multipliers = {};
       els.checks.querySelectorAll("[data-type-multiplier]").forEach(select => {
-        multipliers[select.dataset.typeMultiplier] = Math.min(Math.max(Number(select.value) || 1, 1), 3);
+        const type = select.dataset.typeMultiplier;
+        multipliers[type] = Math.min(Math.max(Number(select.value) || 1, 1), maxTypeMultiplier(type));
       });
       return multipliers;
     }
 
     function applyTypeMultipliers(multipliers = {}) {
       els.checks.querySelectorAll("[data-type-multiplier]").forEach(select => {
-        const value = Number(multipliers[select.dataset.typeMultiplier]) || 1;
-        select.value = String(Math.min(Math.max(value, 1), 3));
+        const type = select.dataset.typeMultiplier;
+        const value = Number(multipliers[type]) || 1;
+        select.value = String(Math.min(Math.max(value, 1), maxTypeMultiplier(type)));
       });
     }
 
@@ -2835,13 +2849,14 @@
     }
 
     function collectOptions() {
+      const dateText = syncTodayDate();
       return {
         grade: els.grade.value,
         title: els.title.value.trim() || "字词练习",
         types: getSelectedTypes(),
         typeMultipliers: getTypeMultipliers(),
         wordCount: Number(els.wordCount.value) || 12,
-        dateText: els.date.value.trim() || todayText()
+        dateText
       };
     }
 
@@ -2895,12 +2910,13 @@
     }
 
     function saveState() {
+      const date = syncTodayDate();
       const data = {
         grade: els.grade.value,
         title: els.title.value,
         input: els.input.value,
         wordCount: els.wordCount.value,
-        date: els.date.value,
+        date,
         useApi: els.useApi.checked,
         types: getSelectedTypes(),
         typeMultipliers: getTypeMultipliers()
@@ -2909,7 +2925,7 @@
     }
 
     function restoreState() {
-      els.date.value = todayText();
+      syncTodayDate();
       const saved = localStorage.getItem(stateKey);
       if (!saved) {
         els.input.value = sampleText;
@@ -2922,7 +2938,7 @@
         els.title.value = data.title || els.title.value;
         els.input.value = data.input || sampleText;
         els.wordCount.value = data.wordCount || els.wordCount.value;
-        els.date.value = data.date || todayText();
+        syncTodayDate();
         els.useApi.checked = data.useApi !== false;
         if (Array.isArray(data.types)) {
           const restoredTypes = new Set(data.types);
@@ -2988,6 +3004,13 @@
     restoreState();
     updateTypeMultiplierStates();
     updateGenerationModeUI();
+    setInterval(() => {
+      const previousDate = els.date.value;
+      const currentDate = syncTodayDate();
+      if (previousDate !== currentDate) {
+        saveState();
+      }
+    }, 60 * 1000);
     const loadedConfig = loadApiConfig();
     if (els.useApi.checked && !loadedConfig) {
       els.apiConfigPanel.classList.add("open");

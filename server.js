@@ -539,12 +539,16 @@ const sectionInstructions = {
   wordSentence: "用词语造句。"
 };
 
+function maxTypeMultiplier(type) {
+  return type === "copyPractice" ? 5 : 3;
+}
+
 function typeMultiplierFor(input, type) {
   const raw = input?.typeMultipliers && typeof input.typeMultipliers === "object"
     ? input.typeMultipliers[type]
     : 1;
   const multiplier = Number(raw) || 1;
-  return Math.min(Math.max(Math.round(multiplier), 1), 3);
+  return Math.min(Math.max(Math.round(multiplier), 1), maxTypeMultiplier(type));
 }
 
 function expectedQuestionCount(input, type = "") {
