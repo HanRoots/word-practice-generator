@@ -837,6 +837,45 @@
       border-left-width: 0;
     }
 
+    .copy-practice-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7mm 13mm;
+    }
+
+    .copy-practice-row {
+      break-inside: avoid;
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      align-items: center;
+      column-gap: 7px;
+      min-width: 0;
+    }
+
+    .copy-practice-cells {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: var(--write-cell);
+      justify-content: start;
+      gap: 0;
+    }
+
+    .practice-square.sample-char {
+      display: inline-grid;
+      place-items: center;
+      color: #111827;
+      background: #fafafa;
+      font-family: var(--serif);
+      font-size: 25px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .practice-square .sample-text {
+      position: relative;
+      z-index: 1;
+    }
+
     .fill-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -951,7 +990,8 @@
       .worksheet-header,
       .worksheet-meta,
       .question-grid,
-      .answer-list {
+      .answer-list,
+      .copy-practice-list {
         grid-template-columns: 1fr;
       }
     }
@@ -1045,6 +1085,7 @@
       <div class="field">
         <span class="label">题型</span>
         <div class="checks" id="typeChecks">
+          <label class="check"><input type="checkbox" value="copyPractice" checked> <span class="check-name">抄写</span><select class="type-multiplier" data-type-multiplier="copyPractice"><option value="1">1遍</option><option value="2">2遍</option><option value="3">3遍</option></select></label>
           <label class="check"><input type="checkbox" value="pronunciationChoice" checked> <span class="check-name">组词辨音</span><select class="type-multiplier" data-type-multiplier="pronunciationChoice"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
           <label class="check"><input type="checkbox" value="pinyinWriteWord" checked> <span class="check-name">看拼音写词</span><select class="type-multiplier" data-type-multiplier="pinyinWriteWord"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
           <label class="check"><input type="checkbox" value="confusingCharFill" checked> <span class="check-name">易混字填空</span><select class="type-multiplier" data-type-multiplier="confusingCharFill"><option value="1">1倍</option><option value="2">2倍</option><option value="3">3倍</option></select></label>
@@ -1585,6 +1626,7 @@
     const stateKey = "word-practice-generator-state-v2";
     const configKey = "word-practice-generator-api-config-v1";
     const apiTypeLabels = {
+      copyPractice: "抄写巩固",
       pronunciationChoice: "错字组词辨音",
       pinyinWriteWord: "看拼音写词语",
       confusingCharFill: "易混字填空辨析",
@@ -2177,6 +2219,39 @@
       `;
     }
 
+    function copyPracticeChar(question) {
+      const value = question.char || question.targetChar || question.word || question.term || "";
+      return Array.from(String(value || "")).find(isCjkChar) || "";
+    }
+
+    function renderCopyPracticeSection(questions) {
+      const rows = [];
+      const byChar = new Map();
+      questions.forEach(question => {
+        const char = copyPracticeChar(question);
+        if (!char) return;
+        if (!byChar.has(char)) {
+          byChar.set(char, { char, copies: 0 });
+          rows.push(byChar.get(char));
+        }
+        byChar.get(char).copies += 1;
+      });
+
+      return `
+        <div class="copy-practice-list">
+          ${rows.map((row, index) => `
+            <div class="copy-practice-row">
+              <span>${index + 1}.</span>
+              <span class="copy-practice-cells">
+                <span class="practice-square sample-char"><span class="sample-text">${escapeHtml(row.char)}</span></span>
+                ${Array.from({ length: Math.max(1, row.copies) }, () => `<span class="practice-square"></span>`).join("")}
+              </span>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
     function stripOptionPrefix(value) {
       return optionText(value).replace(/^(?:\s*[A-Ha-hＡ-Ｈａ-ｈ][\.\、．:：]\s*)+/, "").trim();
     }
@@ -2365,6 +2440,9 @@
 
     function renderApiSectionBody(section) {
       const questions = section.questions || [];
+      if (section.type === "copyPractice") {
+        return renderCopyPracticeSection(questions);
+      }
       if (section.type === "pronunciationChoice") {
         return `<div class="pronunciation-grid">${questions.map(renderPronunciationQuestion).join("")}</div>`;
       }
@@ -2526,6 +2604,7 @@
       });
 
       const sections = (payload.sections || []).map((section, index) => {
+        if (section.type === "copyPractice") return "";
         const answers = answerMap.get(section.type);
         const items = answers && answers.length
           ? answers
@@ -2547,7 +2626,7 @@
           return `<li>${escapeHtml(prefix + answer)} <span class="answer-note">${escapeHtml(note)}</span></li>`;
         }).join("")}</ol>`;
         return makeSection(index + 1, section.title || apiTypeLabels[section.type] || `第 ${index + 1} 题`, body);
-      });
+      }).filter(Boolean);
 
       return `
         <article class="sheet">
@@ -2846,8 +2925,10 @@
         els.date.value = data.date || todayText();
         els.useApi.checked = data.useApi !== false;
         if (Array.isArray(data.types)) {
+          const restoredTypes = new Set(data.types);
+          restoredTypes.add("copyPractice");
           els.checks.querySelectorAll("input").forEach(input => {
-            input.checked = data.types.includes(input.value);
+            input.checked = restoredTypes.has(input.value);
           });
         }
         applyTypeMultipliers(data.typeMultipliers || {});

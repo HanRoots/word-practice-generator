@@ -11,6 +11,7 @@ const defaultModel = process.env.LLM_MODEL || "gpt-4.1-mini";
 const defaultApiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || "";
 
 const typeLabels = {
+  copyPractice: "抄写巩固",
   pronunciationChoice: "错字组词辨音",
   pinyinWriteWord: "看拼音写词语",
   confusingCharFill: "易混字填空辨析",
@@ -140,14 +141,15 @@ function buildPrompt(input) {
         "需要生成的题型：",
         ...types.map(type => `- ${type}: ${typeLabels[type]}`),
         "",
-        "七类题型要求：",
-        "1. pronunciationChoice：错字组词后辨析字音，孩子选正确读音。每题必须含 word、char、options、answer、answerText；options 固定 3 个读音候选，不能只是同一拼音组合改声调，至少一个干扰音要改变声母或韵母。",
-        "2. pinyinWriteWord：错字自动组词，看拼音写词语。每题必须含 word 和 pinyin，pinyin 必须带声调。",
-        "3. confusingCharFill：由错字延伸 3-4 个易混字，放入真实语文语境中选正确字。每题必须含 stem、options、answer、answerWord、completedSentence、explanation。answer 填入 stem 后必须组成常用词语 answerWord，completedSentence 必须是自然通顺的完整句。严禁机械拆字或凑出不自然表达，例如不要生成“他的笑容很（ ）易”“这是（ ）确的消息”“他（ ）外喜欢画画”这类句子。",
-        "4. contextualPinyinWrite：把看拼音写词语放入语境中再测一次。每题必须含 word、pinyin、stem，stem 用 ____ 表示书写位置。",
-        "5. mixedErrorChoice：字音字形综合选择题，例如“字音字形错误最多的一项是”。每题必须同时出现读音错误和字形错误；字形错误只能使用真实常见错写，如“拨河/拔河”“辩别/辨别”，禁止临时硬造。",
-        "6. meaningSameChoice：测试同一个字在不同词语中的意思是否相同，例如“下列各组词语中，加点字意思相同的一项是”。每个 option 用对象格式 {\"words\":[\"打水\",\"打伞\"],\"targetChar\":\"打\",\"sameMeaning\":false,\"reason\":\"打水是汲取，打伞是撑开\"}；words 必须是 2-3 个词语，且每个词语都必须包含 targetChar。同一道题四个选项里的词语不得重复。每个 option 都必须有 reason，正确项解释为什么相同，错误项解释为什么不同。错误选项也必须比较同一个汉字在不同词语里的意思，不要用“辨/辩”“在/再”“做/作”这种不同字形来凑选项，不要写成“打水 · 打 · 伞”。",
-        "7. wordSentence：用错字组词，并要求孩子造句。每题含 word。",
+        "八类题型要求：",
+        "1. copyPractice：抄写巩固。每题必须含 char，只使用孩子输入的错字本字；不需要选项和答案。",
+        "2. pronunciationChoice：错字组词后辨析字音，孩子选正确读音。每题必须含 word、char、options、answer、answerText；options 固定 3 个读音候选，不能只是同一拼音组合改声调，至少一个干扰音要改变声母或韵母。",
+        "3. pinyinWriteWord：错字自动组词，看拼音写词语。每题必须含 word 和 pinyin，pinyin 必须带声调。",
+        "4. confusingCharFill：由错字延伸 3-4 个易混字，放入真实语文语境中选正确字。每题必须含 stem、options、answer、answerWord、completedSentence、explanation。answer 填入 stem 后必须组成常用词语 answerWord，completedSentence 必须是自然通顺的完整句。严禁机械拆字或凑出不自然表达，例如不要生成“他的笑容很（ ）易”“这是（ ）确的消息”“他（ ）外喜欢画画”这类句子。",
+        "5. contextualPinyinWrite：把看拼音写词语放入语境中再测一次。每题必须含 word、pinyin、stem，stem 用 ____ 表示书写位置。",
+        "6. mixedErrorChoice：字音字形综合选择题，例如“字音字形错误最多的一项是”。每题必须同时出现读音错误和字形错误；字形错误只能使用真实常见错写，如“拨河/拔河”“辩别/辨别”，禁止临时硬造。",
+        "7. meaningSameChoice：测试同一个字在不同词语中的意思是否相同，例如“下列各组词语中，加点字意思相同的一项是”。每个 option 用对象格式 {\"words\":[\"打水\",\"打伞\"],\"targetChar\":\"打\",\"sameMeaning\":false,\"reason\":\"打水是汲取，打伞是撑开\"}；words 必须是 2-3 个词语，且每个词语都必须包含 targetChar。同一道题四个选项里的词语不得重复。每个 option 都必须有 reason，正确项解释为什么相同，错误项解释为什么不同。错误选项也必须比较同一个汉字在不同词语里的意思，不要用“辨/辩”“在/再”“做/作”这种不同字形来凑选项，不要写成“打水 · 打 · 伞”。",
+        "8. wordSentence：用错字组词，并要求孩子造句。每题含 word。",
         "看拼音写词语和语境看拼音写词的 word 长度以 2-4 字为主，便于田字格排版。",
         "",
         "返回前必须逐题自检；不合格就换题，不要输出有问题的题：",
@@ -454,6 +456,13 @@ function validateQuestion(section, question, questionIndex, issues) {
   }
   validateOptionBasics(section, question, path, issues);
 
+  if (section.type === "copyPractice") {
+    const char = String(question.char || question.targetChar || question.word || "").trim();
+    if (!isSingleCjkChar(char)) {
+      issues.push(`${path} 抄写题必须是单个汉字`);
+    }
+    return;
+  }
   if (section.type === "pronunciationChoice") {
     validatePronunciationChoice(question, path, issues);
     return;
@@ -520,6 +529,7 @@ function repairGeneratedContent(payload) {
 }
 
 const sectionInstructions = {
+  copyPractice: "先观察字形，在田字格中认真抄写。",
   pronunciationChoice: "读词语，选择加点字的正确读音。",
   pinyinWriteWord: "看拼音，写词语。",
   confusingCharFill: "选择正确的字填入句子中。",
@@ -636,6 +646,9 @@ function collectTargetIssues(payload, input) {
 }
 
 function answerTextForQuestion(section, question) {
+  if (section.type === "copyPractice") {
+    return "";
+  }
   if (section.type === "pinyinWriteWord" || section.type === "contextualPinyinWrite" || section.type === "wordSentence") {
     return String(question.word || question.term || question.answerWord || "");
   }
@@ -651,7 +664,10 @@ function answerTextForQuestion(section, question) {
 }
 
 function rebuildAnswerKey(payload) {
-  payload.answerKey = (payload.sections || []).map(section => ({
+  const answerlessTypes = new Set(["copyPractice"]);
+  payload.answerKey = (payload.sections || [])
+    .filter(section => !answerlessTypes.has(section.type))
+    .map(section => ({
     sectionType: section.type,
     title: section.title || typeLabels[section.type] || section.type,
     items: (section.questions || []).map((question, index) => ({
@@ -837,6 +853,7 @@ function slotKey(type, index) {
 }
 
 const repairTypeRules = {
+  copyPractice: "copyPractice 字段：char；只抄写孩子输入的错字本字，不需要答案。",
   pronunciationChoice: "pronunciationChoice 字段：word、char、stem、options、answer、answerText、explanation；options 固定 3 个读音候选，读音必须带声调，不能只改声调。",
   pinyinWriteWord: "pinyinWriteWord 字段：word、pinyin；pinyin 必须带声调，word 以 2-4 字为主。",
   confusingCharFill: "confusingCharFill 字段：stem、options、answer、answerWord、completedSentence、explanation；填入后必须形成真实常用词语。",
@@ -2395,10 +2412,22 @@ function makeWordSentenceQuestion(materials, index) {
   };
 }
 
+function makeCopyPracticeQuestion(materials, index) {
+  const material = materialAt(materials, index);
+  const char = material?.char || firstCjk(material?.words?.[0]?.word) || "";
+  return {
+    id: `copyPractice-${index + 1}`,
+    char,
+    word: char,
+    explanation: "先看清字形，再在田字格中抄写。"
+  };
+}
+
 function composeWorksheetFromMaterials(input, materialPayload) {
   const materials = materialsFromPayload(input, materialPayload);
   const mixedChoiceWords = mixedChoiceWordsFromPayload(input, materialPayload, materials);
   const builders = {
+    copyPractice: makeCopyPracticeQuestion,
     pronunciationChoice: makePronunciationQuestion,
     pinyinWriteWord: makePinyinWordQuestion,
     confusingCharFill: makeConfusingFillQuestion,
