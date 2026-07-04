@@ -59,6 +59,12 @@ npm run desktop
 npm run pack
 ```
 
+生成 Windows x64 安装包和便携版：
+
+```bash
+npm run dist:win
+```
+
 桌面版会把网页、`server.js` 组题服务和本地字库一起打包。API Key 不会写入安装包，使用者仍然需要在「API 配置」里填写自己的模型服务；如果只使用本地兜底素材，生成能力会保守一些。
 
 ## API 配置
