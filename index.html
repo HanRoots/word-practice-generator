@@ -105,6 +105,14 @@
       display: none;
     }
 
+    .is-hidden {
+      display: none !important;
+    }
+
+    #apiModel {
+      margin-top: 8px;
+    }
+
     label,
     .label {
       display: block;
@@ -1125,14 +1133,23 @@
         </div>
 
         <div class="field">
-          <label for="apiModel">模型</label>
-          <input id="apiModel" type="text" value="gpt-4.1-mini" list="modelPresets" spellcheck="false">
-          <datalist id="modelPresets">
-            <option value="gpt-4.1-mini"></option>
-            <option value="deepseek-v4-flash"></option>
-            <option value="deepseek-v4-pro"></option>
-            <option value="deepseek-chat"></option>
-          </datalist>
+          <label for="apiModelPreset">模型</label>
+          <select id="apiModelPreset">
+            <optgroup label="OpenAI 兼容">
+              <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+              <option value="gpt-4.1">gpt-4.1</option>
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+            </optgroup>
+            <optgroup label="DeepSeek">
+              <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+              <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+              <option value="deepseek-chat">deepseek-chat</option>
+              <option value="deepseek-reasoner">deepseek-reasoner</option>
+            </optgroup>
+            <option value="__custom__">自定义模型名...</option>
+          </select>
+          <input id="apiModel" class="is-hidden" type="text" value="gpt-4.1-mini" spellcheck="false" placeholder="输入服务商支持的模型名">
+          <p class="hint">选择常用模型，或选择“自定义模型名”后手动填写。</p>
         </div>
 
         <div class="field">
@@ -1608,6 +1625,7 @@
       apiConfigStatus: document.querySelector("#apiConfigStatus"),
       apiProvider: document.querySelector("#apiProvider"),
       apiBaseUrl: document.querySelector("#apiBaseUrl"),
+      apiModelPreset: document.querySelector("#apiModelPreset"),
       apiModel: document.querySelector("#apiModel"),
       apiKey: document.querySelector("#apiKey"),
       allowInsecureTLS: document.querySelector("#allowInsecureTLS"),
@@ -1706,11 +1724,36 @@
       els.apiConfigBadge.textContent = tone === "ready" ? "已配置" : "未配置";
     }
 
+    function setModelValue(model) {
+      const value = String(model || "").trim();
+      const preset = Array.from(els.apiModelPreset.options).find(option => option.value === value);
+      if (preset) {
+        els.apiModelPreset.value = value;
+        els.apiModel.value = value;
+        els.apiModel.classList.add("is-hidden");
+        return;
+      }
+      els.apiModelPreset.value = "__custom__";
+      els.apiModel.value = value;
+      els.apiModel.classList.remove("is-hidden");
+    }
+
+    function selectedModelValue() {
+      if (els.apiModelPreset.value === "__custom__") {
+        return els.apiModel.value.trim();
+      }
+      return els.apiModelPreset.value.trim();
+    }
+
+    function syncModelPreset() {
+      setModelValue(selectedModelValue());
+    }
+
     function readApiConfigFromFields() {
       return {
         provider: els.apiProvider.value || "openai",
         baseUrl: els.apiBaseUrl.value.trim().replace(/\/$/, ""),
-        model: els.apiModel.value.trim(),
+        model: selectedModelValue(),
         apiKey: els.apiKey.value.trim(),
         allowInsecureTLS: els.allowInsecureTLS.checked,
         timeoutSeconds: Math.min(Math.max(Number(els.requestTimeout.value) || 30, 15), 180),
@@ -1723,7 +1766,7 @@
       if (!/^https?:\/\//.test(config.baseUrl)) return "Base URL 需要以 http:// 或 https:// 开头。";
       if (!config.model) return "请填写模型名。";
       if (config.provider === "deepseek" && !config.model.startsWith("deepseek-")) {
-        return "DeepSeek 模型名应使用 deepseek-v4-flash、deepseek-v4-pro 或 deepseek-chat。";
+        return "DeepSeek 模型名应使用 deepseek-v4-flash、deepseek-v4-pro、deepseek-chat 或 deepseek-reasoner。";
       }
       if (!config.apiKey) return "请填写 API Key。";
       return "";
@@ -1755,7 +1798,7 @@
         const inferredProvider = (config.baseUrl || "").includes("deepseek.com") ? "deepseek" : (config.provider || "openai");
         els.apiProvider.value = inferredProvider;
         els.apiBaseUrl.value = config.baseUrl || "https://api.openai.com/v1";
-        els.apiModel.value = config.model || "gpt-4.1-mini";
+        setModelValue(config.model || "gpt-4.1-mini");
         els.apiKey.value = config.apiKey || "";
         els.allowInsecureTLS.checked = Boolean(config.allowInsecureTLS);
         els.requestTimeout.value = config.timeoutSeconds || 30;
@@ -1790,6 +1833,7 @@
 
     function clearApiConfig() {
       localStorage.removeItem(configKey);
+      applyProviderPreset(true);
       els.apiKey.value = "";
       els.allowInsecureTLS.checked = false;
       els.requestTimeout.value = 30;
@@ -1803,8 +1847,11 @@
         if (force || !els.apiBaseUrl.value.trim() || els.apiBaseUrl.value.includes("openai.com")) {
           els.apiBaseUrl.value = "https://api.deepseek.com";
         }
-        if (force || !els.apiModel.value.trim() || els.apiModel.value === "DeepSeek" || els.apiModel.value.startsWith("gpt-")) {
-          els.apiModel.value = "deepseek-v4-flash";
+        const model = selectedModelValue();
+        if (force || !model || model === "DeepSeek" || model.startsWith("gpt-")) {
+          setModelValue("deepseek-v4-flash");
+        } else {
+          setModelValue(model);
         }
       }
 
@@ -1812,9 +1859,16 @@
         if (force || !els.apiBaseUrl.value.trim() || els.apiBaseUrl.value.includes("deepseek.com")) {
           els.apiBaseUrl.value = "https://api.openai.com/v1";
         }
-        if (force || !els.apiModel.value.trim() || els.apiModel.value.toLowerCase() === "deepseek") {
-          els.apiModel.value = "gpt-4.1-mini";
+        const model = selectedModelValue();
+        if (force || !model || model.toLowerCase() === "deepseek" || model.startsWith("deepseek-")) {
+          setModelValue("gpt-4.1-mini");
+        } else {
+          setModelValue(model);
         }
+      }
+
+      if (els.apiProvider.value === "custom") {
+        syncModelPreset();
       }
     }
 
@@ -2985,6 +3039,18 @@
     els.apiProvider.addEventListener("change", () => {
       applyProviderPreset(true);
       setConfigStatus("已切换接口预设，请检查 API Key 后保存。", "warn");
+    });
+    els.apiModelPreset.addEventListener("change", () => {
+      if (els.apiModelPreset.value === "__custom__") {
+        els.apiModel.classList.remove("is-hidden");
+        els.apiModel.focus();
+      } else {
+        setModelValue(els.apiModelPreset.value);
+      }
+      setConfigStatus("已切换模型，请保存配置。", "warn");
+    });
+    els.apiModel.addEventListener("input", () => {
+      setConfigStatus("已修改自定义模型名，请保存配置。", "warn");
     });
 
     [els.grade, els.title, els.input, els.wordCount, els.date, els.useApi].forEach(el => {

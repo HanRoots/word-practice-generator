@@ -16,7 +16,7 @@
   - 加点字意思辨析
   - 组词造句
 - 支持每类题型按错字量生成 1 倍、2 倍、3 倍练习；抄写题的倍数表示每个错字抄写几遍。
-- 内置三至六年级统编版字词补充库，用于补充读音、常用词、易混字和年级词语。
+- 内置一至六年级统编版字词补充库，用于补充读音、常用词、易混字和年级词语。
 - 大模型不可用时，会尽量用本地字库兜底生成保守练习。
 - 支持 A4 打印预览和答案页。
 
@@ -109,6 +109,6 @@ python3 tools/import_word_bank.py /Users/han/Desktop/字表库 data/word-bank.js
 
 - `index.html`：前端页面、打印排版和本地状态保存。
 - `server.js`：本地服务、大模型调用、素材规范化和组题逻辑。
-- `data/word-bank.json`：三至六年级字词补充库。
+- `data/word-bank.json`：一至六年级字词补充库。
 - `tools/import_word_bank.py`：从 `.docx` 字表导入本地 JSON 字库。
 - `api-contract.md`：大模型素材生成契约。
