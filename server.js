@@ -42,6 +42,24 @@ function sendText(res, status, content, contentType = "text/plain; charset=utf-8
   res.end(content);
 }
 
+function allowApiOrigin(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  if (origin === "https://hanroots.github.io") {
+    res.setHeader("access-control-allow-origin", origin);
+    res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+    res.setHeader("access-control-allow-headers", "content-type");
+    res.setHeader("access-control-allow-private-network", "true");
+    res.setHeader("vary", "Origin");
+    return true;
+  }
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -2612,6 +2630,23 @@ function serveFile(req, res) {
 
 function createAppServer() {
   return http.createServer(async (req, res) => {
+    if (req.url === "/api/health" || req.url === "/api/generate") {
+      if (!allowApiOrigin(req, res)) {
+        sendText(res, 403, "Origin not allowed");
+        return;
+      }
+      if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+    }
+
+    if (req.method === "GET" && req.url === "/api/health") {
+      sendJson(res, 200, { service: "word-practice-generator" });
+      return;
+    }
+
     if (req.method === "POST" && req.url === "/api/generate") {
       try {
         const body = await readBody(req);
