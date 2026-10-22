@@ -5,7 +5,7 @@
 ## 功能
 
 - 支持按年级生成字词练习。
-- 支持前端配置 OpenAI 兼容 API、DeepSeek 或自定义接口。
+- 支持前端配置 OpenAI 兼容 API、DeepSeek 或自定义接口；线上匿名服务目前只允许 DeepSeek/OpenAI 官方 API 地址，自定义地址可在本地版使用。
 - 支持 8 类题型：
   - 抄写巩固
   - 错字组词辨音

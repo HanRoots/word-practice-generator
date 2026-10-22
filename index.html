@@ -1702,7 +1702,7 @@
     function updateGenerationModeUI() {
       els.localMaterialField.classList.toggle("is-hidden", els.useApi.checked);
       els.apiModeHint.textContent = isGitHubPages
-        ? "线上模式：API Key 和错字经 HTTPS 发送到本项目的独立云函数，再由云函数调用模型；密钥仅保存在当前浏览器，不写入题目或字库。"
+        ? "线上模式：API Key 和错字经 HTTPS 发送到本项目的独立云函数，再由云函数调用模型；密钥仅保存在当前浏览器，不写入题目或字库。目前仅支持 DeepSeek/OpenAI 官方 API 地址。"
         : "本地模式：API Key 保存在当前浏览器，仅发送给本机组题服务。";
     }
 
