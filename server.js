@@ -9,6 +9,15 @@ const host = process.env.HOST || "127.0.0.1";
 const defaultBaseUrl = (process.env.LLM_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
 const defaultModel = process.env.LLM_MODEL || "gpt-4.1-mini";
 const defaultApiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || "";
+const hostedMode = process.env.HOSTED_MODE === "1";
+const hostedRateLimit = Math.max(1, Number(process.env.RATE_LIMIT_MAX || 20));
+let hostedWindowStart = Date.now();
+let hostedWindowRequests = 0;
+const allowedModelHosts = new Set([
+  "api.deepseek.com",
+  "api.openai.com",
+  ...String(process.env.ALLOWED_MODEL_HOSTS || "").split(",").map(hostname => hostname.trim().toLowerCase()).filter(Boolean)
+]);
 
 const typeLabels = {
   copyPractice: "抄写巩固",
@@ -44,7 +53,7 @@ function sendText(res, status, content, contentType = "text/plain; charset=utf-8
 
 function allowApiOrigin(req, res) {
   const origin = req.headers.origin;
-  if (!origin) return true;
+  if (!origin) return !hostedMode || req.method === "GET";
   if (origin === "https://hanroots.github.io") {
     res.setHeader("access-control-allow-origin", origin);
     res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
@@ -54,7 +63,7 @@ function allowApiOrigin(req, res) {
     return true;
   }
   try {
-    return new URL(origin).host === req.headers.host;
+    return !hostedMode && new URL(origin).host === req.headers.host;
   } catch {
     return false;
   }
@@ -2485,8 +2494,8 @@ async function callModel(input) {
   const config = input.apiConfig && typeof input.apiConfig === "object" ? input.apiConfig : {};
   const requestBaseUrl = String(config.baseUrl || defaultBaseUrl).replace(/\/$/, "");
   const requestModel = String(config.model || defaultModel).trim();
-  const requestApiKey = String(config.apiKey || defaultApiKey).trim();
-  const allowInsecureTLS = Boolean(config.allowInsecureTLS);
+  const requestApiKey = String(hostedMode ? config.apiKey || "" : config.apiKey || defaultApiKey).trim();
+  const allowInsecureTLS = !hostedMode && Boolean(config.allowInsecureTLS);
   const timeoutMs = Math.min(Math.max(Number(config.timeoutSeconds) || 30, 15), 180) * 1000;
   const provider = String(config.provider || "").toLowerCase();
   const fastMode = config.fastMode !== false;
@@ -2495,6 +2504,19 @@ async function callModel(input) {
     const error = new Error("Invalid API Base URL.");
     error.status = 400;
     throw error;
+  }
+  if (hostedMode) {
+    let modelUrl;
+    try {
+      modelUrl = new URL(requestBaseUrl);
+    } catch {
+      modelUrl = null;
+    }
+    if (!modelUrl || modelUrl.protocol !== "https:" || modelUrl.port || modelUrl.username || modelUrl.password || !allowedModelHosts.has(modelUrl.hostname)) {
+      const error = new Error("线上模式仅允许已配置的 HTTPS 模型服务地址。");
+      error.status = 400;
+      throw error;
+    }
   }
   if (!requestModel) {
     const error = new Error("Missing model name.");
@@ -2643,11 +2665,23 @@ function createAppServer() {
     }
 
     if (req.method === "GET" && req.url === "/api/health") {
-      sendJson(res, 200, { service: "word-practice-generator" });
+      sendJson(res, 200, { service: "word-practice-generator", mode: hostedMode ? "hosted" : "local" });
       return;
     }
 
     if (req.method === "POST" && req.url === "/api/generate") {
+      if (hostedMode) {
+        const now = Date.now();
+        if (now - hostedWindowStart >= 60_000) {
+          hostedWindowStart = now;
+          hostedWindowRequests = 0;
+        }
+        hostedWindowRequests += 1;
+        if (hostedWindowRequests > hostedRateLimit) {
+          sendJson(res, 429, { error: "请求过于频繁，请稍后重试。" });
+          return;
+        }
+      }
       try {
         const body = await readBody(req);
         const input = JSON.parse(body || "{}");
@@ -2665,7 +2699,8 @@ function createAppServer() {
     }
 
     if (req.method === "GET") {
-      serveFile(req, res);
+      if (hostedMode) sendText(res, 404, "Not found");
+      else serveFile(req, res);
       return;
     }
 

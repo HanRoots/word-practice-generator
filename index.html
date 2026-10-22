@@ -1108,7 +1108,7 @@
       <div class="field">
         <span class="label">生成方式</span>
         <label class="check"><input id="useApi" type="checkbox" checked> 使用 API 大模型生成</label>
-        <p class="hint">API 模式需要本机组题服务：运行 <code>node server.js</code> 后使用本地地址；GitHub Pages 页面也需先启动该服务。配置仅保存在当前浏览器，并发送给本机服务。</p>
+        <p class="hint" id="apiModeHint">API 模式需要本机组题服务。配置保存在当前浏览器，并发送给本机服务。</p>
         <button class="button secondary" id="toggleConfigBtn" type="button">API 配置</button>
       </div>
 
@@ -1217,6 +1217,7 @@
     </section>
   </main>
 
+  <script src="runtime-config.js"></script>
   <script>
     const sampleText = `拔 戴 辨 静 察 做 作 在 再 的 地 得`;
 
@@ -1619,6 +1620,7 @@
       sample: document.querySelector("#sampleBtn"),
       clear: document.querySelector("#clearBtn"),
       useApi: document.querySelector("#useApi"),
+      apiModeHint: document.querySelector("#apiModeHint"),
       toggleConfig: document.querySelector("#toggleConfigBtn"),
       apiConfigPanel: document.querySelector("#apiConfigPanel"),
       apiConfigBadge: document.querySelector("#apiConfigBadge"),
@@ -1684,13 +1686,13 @@
     }
 
     const isGitHubPages = window.location.origin === "https://hanroots.github.io";
-    const localServiceUrl = "http://127.0.0.1:8797";
+    const onlineApiBaseUrl = String(window.WORD_PRACTICE_CONFIG?.apiBaseUrl || "").replace(/\/$/, "");
 
     function friendlyNetworkError(error) {
       const message = String(error?.message || error || "");
       if (/failed to fetch|networkerror|load failed|cancelled|canceled/i.test(message)) {
         if (isGitHubPages) {
-          return `GitHub Pages 不能运行组题服务。请在桌面应用内生成，或在本机运行 node server.js 并确认 ${localServiceUrl} 可以打开后重试。`;
+          return "无法连接线上组题服务，请稍后重试。";
         }
         return "无法连接本机生成服务。请确认 http://127.0.0.1:8797 仍在运行，刷新页面后再生成。";
       }
@@ -1699,28 +1701,34 @@
 
     function updateGenerationModeUI() {
       els.localMaterialField.classList.toggle("is-hidden", els.useApi.checked);
+      els.apiModeHint.textContent = isGitHubPages
+        ? "线上模式：API Key 和错字经 HTTPS 发送到本项目的独立云函数，再由云函数调用模型；密钥仅保存在当前浏览器，不写入题目或字库。"
+        : "本地模式：API Key 保存在当前浏览器，仅发送给本机组题服务。";
     }
 
     async function fetchGenerate(payload) {
       const body = JSON.stringify(payload);
-      const apiUrl = isGitHubPages ? `${localServiceUrl}/api/generate` : "/api/generate";
+      const apiUrl = isGitHubPages ? `${onlineApiBaseUrl}/api/generate` : "/api/generate";
       if (isGitHubPages) {
+        if (!/^https:\/\//.test(onlineApiBaseUrl)) {
+          throw new Error("线上组题服务尚未配置，请稍后再试。桌面应用和本地版仍可使用。");
+        }
         let health;
         try {
-          health = await fetch(`${localServiceUrl}/api/health`, { cache: "no-store" });
+          health = await fetch(`${onlineApiBaseUrl}/api/health`, { cache: "no-store" });
         } catch (error) {
           throw new Error(friendlyNetworkError(error));
         }
         const service = await health.json().catch(() => null);
         if (!health.ok || service?.service !== "word-practice-generator") {
-          throw new Error(`本机 ${localServiceUrl} 不是字词练习生成服务，请启动本项目的 server.js 后重试。`);
+          throw new Error("线上组题服务未就绪，请稍后重试。");
         }
       }
       let lastError = null;
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           if (attempt > 0) {
-            els.status.textContent = `本机服务连接中断，正在重试 ${attempt + 1}/3...`;
+            els.status.textContent = `组题服务连接中断，正在重试 ${attempt + 1}/3...`;
           }
           return await fetch(apiUrl, {
             method: "POST",

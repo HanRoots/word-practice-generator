@@ -7,6 +7,9 @@
   "private": false,
   "scripts": {
     "start": "node server.js",
+    "start:fc": "HOST=0.0.0.0 PORT=9000 HOSTED_MODE=1 node server.js",
+    "package:fc": "node tools/package-fc.js",
+    "test:online": "node --test tests/online-api.test.js",
     "desktop": "electron .",
     "pack": "electron-builder --dir",
     "dist:mac": "electron-builder --mac",
@@ -17,6 +20,7 @@
     "productName": "字词练习生成器",
     "files": [
       "index.html",
+      "runtime-config.js",
       "server.js",
       "main.js",
       "api-contract.md",
